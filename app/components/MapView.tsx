@@ -602,6 +602,26 @@ export default function MapView() {
                         box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
                     }
                 }
+
+                .custom-popup .maplibregl-popup-content {
+                    background: none;
+                    padding: 0;
+                    box-shadow: none;
+                    border: none;
+                }
+                .custom-popup .maplibregl-popup-tip {
+                    border-top-color: rgba(0, 0, 0, 0.9);
+                    border-bottom-color: rgba(0, 0, 0, 0.9);
+                    opacity: 0.9;
+                }
+                .custom-popup .maplibregl-popup-close-button {
+                    color: white;
+                    padding: 8px;
+                    font-size: 16px;
+                    right: 4px;
+                    top: 4px;
+                    z-index: 10;
+                }
             `}</style>
         </div>
     );

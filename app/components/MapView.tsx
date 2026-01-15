@@ -14,7 +14,9 @@ import {
     Navigation,
     Activity,
     Maximize,
-    Locate
+    Locate,
+    AlertTriangle,
+    Radio
 } from 'lucide-react';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES } from '../lib/constants';
@@ -43,6 +45,9 @@ export default function MapView() {
     const [isSearching, setIsSearching] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [wazeData, setWazeData] = useState<any>(null);
+    const [isWazeLoading, setIsWazeLoading] = useState(false);
+    const [isWazeEnabled, setIsWazeEnabled] = useState(false);
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -56,6 +61,7 @@ export default function MapView() {
                     'esri-imagery': MAP_SOURCES.imagery as any,
                     'terrain-source': MAP_SOURCES.terrain as any,
                 },
+                glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 layers: [
                     {
                         id: 'esri-imagery-layer',
@@ -114,6 +120,99 @@ export default function MapView() {
             map.current = null;
         };
     }, []);
+
+    // Waze Layers Initialization & Updates
+    useEffect(() => {
+        if (!map.current || !isMapReady) return;
+        const m = map.current;
+
+        if (!m.getSource('waze-source')) {
+            m.addSource('waze-source', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
+
+            m.addLayer({
+                id: 'waze-heat-circles',
+                type: 'circle',
+                source: 'waze-source',
+                paint: {
+                    'circle-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        10, 4,
+                        15, 12
+                    ],
+                    'circle-color': [
+                        'match', ['get', 'type'],
+                        'POLICE', '#2563eb', // Blue
+                        'ACCIDENT', '#dc2626', // Red
+                        'JAM', '#ea580c', // Orange
+                        'HAZARD', '#facc15', // Yellow
+                        '#8b5cf6' // Purple/Others
+                    ],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-opacity': 0.8
+                }
+            });
+
+            m.addLayer({
+                id: 'waze-labels',
+                type: 'symbol',
+                source: 'waze-source',
+                layout: {
+                    'text-field': ['get', 'type'],
+                    'text-font': ['Open Sans Bold'],
+                    'text-size': 10,
+                    'text-offset': [0, 1.5],
+                    'text-anchor': 'top'
+                },
+                paint: {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#000000',
+                    'text-halo-width': 1
+                }
+            });
+
+            // Popup on click
+            m.on('click', 'waze-heat-circles', (e) => {
+                if (!e.features || e.features.length === 0) return;
+                const feature = e.features[0];
+                const props = feature.properties;
+                const coords = (feature.geometry as any).coordinates.slice();
+
+                new maplibregl.Popup({ className: 'custom-popup' })
+                    .setLngLat(coords as [number, number])
+                    .setHTML(`
+                        <div class="px-4 py-3 bg-black/90 text-white rounded-xl border border-white/10 shadow-2xl backdrop-blur-md min-w-[200px]">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded italic uppercase">${props.type}</span>
+                                <span class="text-white/40 text-[9px] font-mono">${new Date(props.publishedAt).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="font-bold text-sm mb-1">${props.street || 'Unknown Street'}</div>
+                            ${props.description ? `<div class="text-xs text-white/60 italic mt-2 border-t border-white/5 pt-2">${props.description}</div>` : ''}
+                            <div class="flex gap-4 mt-3 text-[9px] uppercase tracking-widest font-bold">
+                                <div><span class="text-white/40">Confidence:</span> ${Math.round(props.confidence * 100)}%</div>
+                                <div><span class="text-white/40">Reliability:</span> ${Math.round(props.reliability * 100)}%</div>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(m);
+            });
+
+            m.on('mouseenter', 'waze-heat-circles', () => { m.getCanvas().style.cursor = 'pointer'; });
+            m.on('mouseleave', 'waze-heat-circles', () => { m.getCanvas().style.cursor = ''; });
+        }
+
+        // Visibility toggle
+        m.setLayoutProperty('waze-heat-circles', 'visibility', isWazeEnabled ? 'visible' : 'none');
+        m.setLayoutProperty('waze-labels', 'visibility', isWazeEnabled ? 'visible' : 'none');
+
+        // Update data
+        if (wazeData?.geojson) {
+            (m.getSource('waze-source') as maplibregl.GeoJSONSource).setData(wazeData.geojson);
+        }
+    }, [isMapReady, isWazeEnabled, wazeData]);
 
     // Terrain Updates
     useEffect(() => {
@@ -203,6 +302,35 @@ export default function MapView() {
             console.error('[Search] Error', e);
         } finally {
             setIsSearching(false);
+        }
+    };
+
+    const fetchWazeData = async () => {
+        if (!map.current) return;
+        setIsWazeLoading(true);
+        setIsWazeEnabled(true);
+        try {
+            const bounds = map.current.getBounds();
+            const bbox = {
+                w: bounds.getWest(),
+                s: bounds.getSouth(),
+                e: bounds.getEast(),
+                n: bounds.getNorth(),
+            };
+
+            const res = await fetch('/api/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bbox }),
+            });
+
+            if (!res.ok) throw new Error('API error');
+            const data = await res.json();
+            setWazeData(data);
+        } catch (err) {
+            console.error('[Waze] Scan Error', err);
+        } finally {
+            setIsWazeLoading(false);
         }
     };
 
@@ -311,7 +439,7 @@ export default function MapView() {
                                             <span className="text-blue-500">{layer.icon}</span>
                                             {layer.label}
                                         </span>
-                                        <div className="relative inline-flex items-center cursor-pointer">
+                                        <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 className="sr-only peer"
@@ -319,9 +447,70 @@ export default function MapView() {
                                                 onChange={e => setLayers(l => ({ ...l, [layer.id]: e.target.checked }))}
                                             />
                                             <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                        </div>
+                                        </label>
                                     </div>
                                 ))}
+                            </div>
+                        </section>
+
+                        {/* WAZE TRAFFIC: Alerts & Jams */}
+                        <section>
+                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <Radio size={12} className={isWazeLoading ? 'animate-pulse' : ''} /> Waze Traffic System
+                            </div>
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${isWazeEnabled ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/20'}`}>
+                                            <AlertTriangle size={18} />
+                                        </div>
+                                        <div>
+                                            <div className="text-white text-xs font-bold">Live Traffic Alerts</div>
+                                            <div className="text-white/40 text-[10px]">Real-time community reports</div>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={isWazeEnabled}
+                                            onChange={e => setIsWazeEnabled(e.target.checked)}
+                                        />
+                                        <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                {isWazeEnabled && (
+                                    <div className="space-y-3 pt-2 border-t border-white/5">
+                                        <button
+                                            onClick={fetchWazeData}
+                                            disabled={isWazeLoading}
+                                            className="w-full h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
+                                        >
+                                            {isWazeLoading ? (
+                                                <>
+                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                    Scanning Region...
+                                                </>
+                                            ) : (
+                                                <>Scan Current Viewport</>
+                                            )}
+                                        </button>
+
+                                        {wazeData && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5 text-center">
+                                                    <div className="text-white/40 text-[8px] uppercase font-bold mb-1">Alerts</div>
+                                                    <div className="text-white font-black text-sm">{wazeData.counts.alerts}</div>
+                                                </div>
+                                                <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5 text-center">
+                                                    <div className="text-white/40 text-[8px] uppercase font-bold mb-1">Jams</div>
+                                                    <div className="text-white font-black text-sm">{wazeData.counts.jams}</div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </section>
 

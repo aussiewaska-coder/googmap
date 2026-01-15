@@ -201,20 +201,36 @@ export default function MapView() {
                     return text;
                 };
 
+                const getColor = (value: number, type: 'conf' | 'rel') => {
+                    // Logic: High confidence/reliability = Red (Verified/Major), Low = Yellow
+                    // Confidence is 0-1, Reliability is typically 1-10
+                    const normalized = type === 'conf' ? value * 10 : value;
+                    return normalized >= 5 ? 'text-red-500' : 'text-yellow-400';
+                };
+
+                const confValue = Math.round(props.confidence * 100); // 0-100%
+                const relValue = props.reliability; // Raw score 1-10
+
                 new maplibregl.Popup({ className: 'custom-popup' })
                     .setLngLat(coords as [number, number])
                     .setHTML(`
-                        <div class="px-4 py-3 bg-black/90 text-white rounded-xl border border-white/10 shadow-2xl backdrop-blur-md min-w-[200px]">
-                            <div class="flex items-center gap-2 mb-2">
+                        <div class="px-4 py-3 bg-black/90 text-white rounded-xl border border-white/10 shadow-2xl backdrop-blur-md min-w-[240px]">
+                            <div class="flex items-center justify-between mb-3">
                                 <span class="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded italic uppercase tracking-wider">${formatType(props.type, props.subtype)}</span>
-                                <span class="text-white/40 text-[10px] font-mono font-bold">${timeAgo(props.publishedAt)}</span>
+                                <span class="text-white text-xs font-mono font-bold">${timeAgo(props.publishedAt)}</span>
                             </div>
                             <div class="font-bold text-sm mb-0.5">${props.street || 'Unknown Street'}</div>
                             ${props.city ? `<div class="text-xs text-white/40 uppercase font-bold tracking-wider mb-2">${props.city}</div>` : ''}
                             ${props.description ? `<div class="text-xs text-white/60 italic mt-2 border-t border-white/5 pt-2 leading-relaxed">"${props.description}"</div>` : ''}
                             <div class="flex gap-4 mt-3 text-[9px] uppercase tracking-widest font-bold pt-2 border-t border-white/5">
-                                <div><span class="text-white/40">Conf:</span> ${Math.round(props.confidence * 100)}%</div>
-                                <div><span class="text-white/40">Rel:</span> ${Math.round(props.reliability * 100)}%</div>
+                                <div title="Number of drivers who confirmed this alert" class="cursor-help group relative">
+                                    <span class="text-white/40 border-b border-white/20 border-dotted">Confidence:</span> 
+                                    <span class="${getColor(props.confidence, 'conf')}">${confValue}%</span>
+                                </div>
+                                <div title="Reputation score of the reporter (1-10)" class="cursor-help group relative">
+                                    <span class="text-white/40 border-b border-white/20 border-dotted">Reliability:</span> 
+                                    <span class="${getColor(props.reliability, 'rel')}">${relValue}/10</span>
+                                </div>
                             </div>
                         </div>
                     `)

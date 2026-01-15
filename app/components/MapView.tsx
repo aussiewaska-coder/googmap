@@ -217,10 +217,13 @@ export default function MapView() {
                         <div class="px-4 py-3 bg-black/90 text-white rounded-xl border border-white/10 shadow-2xl backdrop-blur-md min-w-[240px]">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded italic uppercase tracking-wider">${formatType(props.type, props.subtype)}</span>
-                                <span class="text-white text-xs font-mono font-bold">${timeAgo(props.publishedAt)}</span>
                             </div>
                             <div class="font-bold text-sm mb-0.5">${props.street || 'Unknown Street'}</div>
-                            ${props.city ? `<div class="text-xs text-white/40 uppercase font-bold tracking-wider mb-2">${props.city}</div>` : ''}
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs text-white/40 uppercase font-bold tracking-wider">${props.city || 'NEARBY'}</span>
+                                <span class="text-white/20">|</span>
+                                <span class="text-white text-xs font-mono font-bold">${timeAgo(props.publishedAt)}</span>
+                            </div>
                             ${props.description ? `<div class="text-xs text-white/60 italic mt-2 border-t border-white/5 pt-2 leading-relaxed">"${props.description}"</div>` : ''}
                             <div class="flex gap-4 mt-3 text-[9px] uppercase tracking-widest font-bold pt-2 border-t border-white/5">
                                 <div title="Number of drivers who confirmed this alert" class="cursor-help group relative">

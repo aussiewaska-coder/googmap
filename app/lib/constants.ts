@@ -2,7 +2,7 @@ export const AUSTRALIA_CENTER = {
     lng: 133.7751,
     lat: -25.2744,
     zoom: 4,
-    pitch: 45,
+    pitch: 65,
     bearing: 0,
 } as const;
 

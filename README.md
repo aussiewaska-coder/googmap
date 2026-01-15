@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Australia MapLibre App
+
+A production-grade MapLibre GL JS web application focused on Australia, built with Next.js App Router and deployed on Vercel.
+
+## Features
+
+- **3D Terrain**: Interactive 3D terrain using AWS Open Data Terrarium tiles and MapLibre's `raster-dem` source.
+- **Imagery**: Esri World Imagery basemap.
+- **Hillshading**: Dynamic hillshade layer based on terrain data.
+- **Interactivity**:
+    - Search for Australian locations (Nominatim).
+    - FlyTo animations for major cities.
+    - Click to drop markers and reverse geocode.
+    - "Locate Me" functionality.
+- **Tech Stack**: Next.js 14+ (App Router), MapLibre GL JS, Tailwind CSS.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+
+- NPM
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Local Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Run the development server:
+    ```bash
+    npm run dev
+    ```
+4.  Open [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment (Vercel)
 
-## Learn More
+This project is optimized for Vercel.
 
-To learn more about Next.js, take a look at the following resources:
+1.  Push the code to a GitHub repository.
+2.  Import the project in Vercel.
+3.  The build settings should be automatically detected (Framework: Next.js).
+4.  Deploy!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Troubleshooting
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+-   **Blank Map**: Ensure your network allows connections to `services.arcgisonline.com` and `s3.amazonaws.com`. Check browser console for CSP errors.
+-   **SSR Issues**: The map component is dynamically imported with `ssr: false` to avoid window is not defined errors.
+-   **CORS**: WMS/Tile requests are generally handled by the browser. If you see CORS errors for APIs, check the serverless proxy implementations in `app/api/*`.
 
-## Deploy on Vercel
+## Data Sources & Attribution
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+-   **Imagery**: Esri, Maxar, Earthstar Geographics, and the GIS User Community.
+-   **Terrain**: Mapzen, AWS Open Data.
+-   **Geocoding**: OpenStreetMap / Nominatim.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Performance
+
+-   **Dynamic Imports**: `maplibre-gl` is heavy, so we load it only on the client.
+-   **Debouncing**: Search inputs could be debounced further for high-traffic production use.
+-   **Layer Visibility**: Toggling layers updates `visibility` rather than rebuilding sources to minimize performance cost.

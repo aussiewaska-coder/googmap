@@ -181,19 +181,40 @@ export default function MapView() {
                 const props = feature.properties;
                 const coords = (feature.geometry as any).coordinates.slice();
 
+                const timeAgo = (dateStr: string) => {
+                    const date = new Date(dateStr);
+                    const now = new Date();
+                    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    if (minutes < 1) return 'Just now';
+                    if (minutes < 60) return `${minutes}m ago`;
+                    const hours = Math.floor(minutes / 60);
+                    if (hours < 24) return `${hours}h ago`;
+                    return date.toLocaleDateString();
+                };
+
+                const formatType = (type: string, subtype: string) => {
+                    let text = type;
+                    if (subtype) {
+                        text += ` • ${subtype.replace(/_/g, ' ')}`;
+                    }
+                    return text;
+                };
+
                 new maplibregl.Popup({ className: 'custom-popup' })
                     .setLngLat(coords as [number, number])
                     .setHTML(`
                         <div class="px-4 py-3 bg-black/90 text-white rounded-xl border border-white/10 shadow-2xl backdrop-blur-md min-w-[200px]">
                             <div class="flex items-center gap-2 mb-2">
-                                <span class="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded italic uppercase">${props.type}</span>
-                                <span class="text-white/40 text-[9px] font-mono">${new Date(props.publishedAt).toLocaleTimeString()}</span>
+                                <span class="bg-blue-600 text-[10px] font-black px-2 py-0.5 rounded italic uppercase tracking-wider">${formatType(props.type, props.subtype)}</span>
+                                <span class="text-white/40 text-[10px] font-mono font-bold">${timeAgo(props.publishedAt)}</span>
                             </div>
-                            <div class="font-bold text-sm mb-1">${props.street || 'Unknown Street'}</div>
-                            ${props.description ? `<div class="text-xs text-white/60 italic mt-2 border-t border-white/5 pt-2">${props.description}</div>` : ''}
-                            <div class="flex gap-4 mt-3 text-[9px] uppercase tracking-widest font-bold">
-                                <div><span class="text-white/40">Confidence:</span> ${Math.round(props.confidence * 100)}%</div>
-                                <div><span class="text-white/40">Reliability:</span> ${Math.round(props.reliability * 100)}%</div>
+                            <div class="font-bold text-sm mb-0.5">${props.street || 'Unknown Street'}</div>
+                            ${props.city ? `<div class="text-xs text-white/40 uppercase font-bold tracking-wider mb-2">${props.city}</div>` : ''}
+                            ${props.description ? `<div class="text-xs text-white/60 italic mt-2 border-t border-white/5 pt-2 leading-relaxed">"${props.description}"</div>` : ''}
+                            <div class="flex gap-4 mt-3 text-[9px] uppercase tracking-widest font-bold pt-2 border-t border-white/5">
+                                <div><span class="text-white/40">Conf:</span> ${Math.round(props.confidence * 100)}%</div>
+                                <div><span class="text-white/40">Rel:</span> ${Math.round(props.reliability * 100)}%</div>
                             </div>
                         </div>
                     `)

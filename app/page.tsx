@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 
 const MapView = dynamic(() => import('./components/MapView'), {
     ssr: false,
-    loading: () => <div className="w-full h-screen bg-black text-white flex items-center justify-center">Loading 3D Map...</div>
+    loading: () => <div className="w-full h-screen bg-black text-white flex items-center justify-center">Loading Globe...</div>
 });
 
 export default function Home() {

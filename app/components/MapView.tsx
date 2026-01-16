@@ -88,10 +88,6 @@ export default function MapView() {
             zoom: AUSTRALIA_CENTER.zoom,
             pitch: AUSTRALIA_CENTER.pitch,
             bearing: AUSTRALIA_CENTER.bearing,
-            maxBounds: [
-                [100, -50], // Southwest
-                [170, -5], // Northeast
-            ],
         });
 
         const m = map.current;
@@ -101,8 +97,35 @@ export default function MapView() {
         m.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
         m.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
+        // Enable globe projection and space atmosphere
+        m.on('style.load', () => {
+            (m as any).setProjection({ type: 'globe' });
+
+            try {
+                // @ts-ignore - MapLibre fog API
+                m.setFog({
+                    range: [-1, 1.5],
+                    'horizon-blend': 0.1,
+                    color: '#242b4b',
+                    'high-color': '#161b36',
+                    'space-color': '#0B0B19',
+                    'star-intensity': 0.8,
+                } as any);
+            } catch (e) {
+                console.log('Fog API not available');
+            }
+        });
+
         m.on('load', () => {
             setIsMapReady(true);
+            
+            // Start globe rotation immediately
+            m.easeTo({
+                center: [128.335700, -27.082600],
+                zoom: 3.93,
+                duration: 6000,
+                easing: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+            });
         });
 
         m.on('move', () => {
@@ -377,7 +400,7 @@ export default function MapView() {
     return (
         <div className="relative w-full h-screen overflow-hidden bg-black font-sans antialiased">
             {/* Map Container */}
-            <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+            <div ref={mapContainer} className="absolute inset-0 w-full h-full map-fade-in" />
 
             {/* SIDEBAR OVERLAY */}
             <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[400px]' : '-translate-x-full w-[400px]'}`}>
@@ -606,7 +629,47 @@ export default function MapView() {
                 </button>
             </div>
 
+            {/* CAMERA DEBUG PANEL */}
+            <div className="fixed top-20 right-6 z-[9000] bg-black/90 backdrop-blur-lg border border-white/20 rounded-xl p-4 shadow-2xl font-mono text-xs">
+                <div className="text-blue-400 font-bold mb-3 uppercase tracking-wider">Camera Debug</div>
+                <div className="space-y-2 text-white/80">
+                    <div className="flex justify-between gap-4">
+                        <span className="text-white/50">Latitude:</span>
+                        <span className="text-white font-bold">{viewState.lat.toFixed(6)}°</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <span className="text-white/50">Longitude:</span>
+                        <span className="text-white font-bold">{viewState.lng.toFixed(6)}°</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <span className="text-white/50">Zoom:</span>
+                        <span className="text-blue-400 font-bold">{viewState.zoom.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <span className="text-white/50">Pitch:</span>
+                        <span className="text-green-400 font-bold">{viewState.pitch.toFixed(0)}°</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <span className="text-white/50">Bearing:</span>
+                        <span className="text-yellow-400 font-bold">{viewState.bearing.toFixed(0)}°</span>
+                    </div>
+                </div>
+            </div>
+
             <style jsx global>{`
+                .map-fade-in {
+                    animation: fadeIn 2s ease-in;
+                }
+                
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                    }
+                    to {
+                        opacity: 1;
+                    }
+                }
+                
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
                 }

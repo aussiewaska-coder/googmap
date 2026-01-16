@@ -1,6 +1,6 @@
 # Australia MapLibre App
 
-A production-grade MapLibre GL JS web application focused on Australia, built with Next.js App Router and deployed on Vercel.
+A production-ready MapLibre GL JS web application focused on Australia, built with Next.js App Router and deployed on Vercel.
 
 ## Features
 

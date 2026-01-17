@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ControllerProfile } from '@/app/lib/gamepad/types';
-import { getActiveGamepad, readBindingValue, applyDeadzone, applyCurve } from '@/app/lib/gamepad/gamepad-reader';
+import { getActiveGamepad, readBindingValue, applyDeadzone } from '@/app/lib/gamepad/gamepad-reader';
 import maplibregl from 'maplibre-gl';
 
 interface DebugModalProps {
@@ -53,10 +53,10 @@ export default function DebugModal({ profile, mapRef }: DebugModalProps) {
                     rawPanY,
                     rawRotate,
                     rawPitch,
-                    panX: applyCurve(applyDeadzone(rawPanX, profile.settings.deadzone), profile.settings.sensitivity),
-                    panY: applyCurve(applyDeadzone(rawPanY, profile.settings.deadzone), profile.settings.sensitivity),
-                    rotate: applyCurve(applyDeadzone(rawRotate, profile.settings.deadzone), profile.settings.sensitivity),
-                    pitch: applyCurve(applyDeadzone(rawPitch, profile.settings.deadzone), profile.settings.sensitivity),
+                    panX: applyDeadzone(rawPanX, profile.settings.deadzone),
+                    panY: applyDeadzone(rawPanY, profile.settings.deadzone),
+                    rotate: applyDeadzone(rawRotate, profile.settings.deadzone),
+                    pitch: applyDeadzone(rawPitch, profile.settings.deadzone),
                 });
             }
         }, 50);
@@ -112,16 +112,36 @@ export default function DebugModal({ profile, mapRef }: DebugModalProps) {
                     {/* Input Processing */}
                     <Section title="Input Processing">
                         <Value label="Deadzone" value={profile.settings.deadzone.toFixed(2)} />
-                        <Value label="Sensitivity" value={profile.settings.sensitivity.toFixed(2)} />
                         <Value label="Smoothing" value={profile.settings.smoothing.toFixed(2)} />
+                        <Value label="Sensitivity (Global ×)" value={`${profile.settings.sensitivity.toFixed(2)}×`} />
                     </Section>
 
                     {/* Movement Speeds (per second) */}
-                    <Section title="Movement Speeds (per sec)">
-                        <Value label="Pan Speed" value={`${profile.settings.panSpeedPxPerSec} px/s`} />
-                        <Value label="Rotate Speed" value={`${profile.settings.rotateDegPerSec}°/s`} />
-                        <Value label="Pitch Speed" value={`${profile.settings.pitchDegPerSec}°/s`} />
-                        <Value label="Zoom Speed" value={`${profile.settings.zoomUnitsPerSec} u/s`} />
+                    <Section title="Base Speeds (preset)">
+                        <Value label="Pan" value={`${profile.settings.panSpeedPxPerSec} px/s`} />
+                        <Value label="Rotate" value={`${profile.settings.rotateDegPerSec}°/s`} />
+                        <Value label="Pitch" value={`${profile.settings.pitchDegPerSec}°/s`} />
+                        <Value label="Zoom" value={`${profile.settings.zoomUnitsPerSec} u/s`} />
+                    </Section>
+
+                    {/* Effective Speeds (base × sensitivity) */}
+                    <Section title="Effective Speeds (×sensitivity)">
+                        <Value
+                            label="Pan"
+                            value={`${Math.round(profile.settings.panSpeedPxPerSec * profile.settings.sensitivity)} px/s`}
+                        />
+                        <Value
+                            label="Rotate"
+                            value={`${Math.round(profile.settings.rotateDegPerSec * profile.settings.sensitivity)}°/s`}
+                        />
+                        <Value
+                            label="Pitch"
+                            value={`${Math.round(profile.settings.pitchDegPerSec * profile.settings.sensitivity)}°/s`}
+                        />
+                        <Value
+                            label="Zoom"
+                            value={`${(profile.settings.zoomUnitsPerSec * profile.settings.sensitivity).toFixed(1)} u/s`}
+                        />
                     </Section>
 
                     {/* Animation Settings */}

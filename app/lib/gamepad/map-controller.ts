@@ -2,7 +2,7 @@ import maplibregl from 'maplibre-gl';
 import { ControllerProfile, Binding } from './types';
 import { loadSessionProfile } from './storage';
 import { DEFAULT_PROFILE, applyTacticalPreset } from './defaults';
-import { getActiveGamepad, readBindingValue, applyDeadzone, applyCurve } from './gamepad-reader';
+import { getActiveGamepad, readBindingValue, applyDeadzone } from './gamepad-reader';
 import { getGlideEasingFn, getFlyEasingFn } from './flight-modes';
 
 export class MapController {
@@ -71,17 +71,18 @@ export class MapController {
     private processGamepad(gp: Gamepad, dt: number) {
         const { settings, bindings } = this.profile;
 
-        // Read raw values and apply deadzone + sensitivity
-        const panX = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pan_x), settings.deadzone), settings.sensitivity);
-        const panY = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pan_y), settings.deadzone), settings.sensitivity);
-        const rot = applyCurve(applyDeadzone(readBindingValue(gp, bindings.rotate_x), settings.deadzone), settings.sensitivity);
-        const pit = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pitch_y), settings.deadzone), settings.sensitivity);
+        // Read raw values and apply deadzone only (linear scaling)
+        const panX = applyDeadzone(readBindingValue(gp, bindings.pan_x), settings.deadzone);
+        const panY = applyDeadzone(readBindingValue(gp, bindings.pan_y), settings.deadzone);
+        const rot = applyDeadzone(readBindingValue(gp, bindings.rotate_x), settings.deadzone);
+        const pit = applyDeadzone(readBindingValue(gp, bindings.pitch_y), settings.deadzone);
 
         // Apply smoothing/inertia to velocities
-        this.velocities.panX = this.smoothToward(this.velocities.panX, panX * settings.panSpeedPxPerSec, settings.smoothing);
-        this.velocities.panY = this.smoothToward(this.velocities.panY, panY * settings.panSpeedPxPerSec, settings.smoothing);
-        this.velocities.rotate = this.smoothToward(this.velocities.rotate, rot * settings.rotateDegPerSec, settings.smoothing);
-        this.velocities.pitch = this.smoothToward(this.velocities.pitch, pit * settings.pitchDegPerSec, settings.smoothing);
+        // Sensitivity is a global multiplier applied to all speed settings
+        this.velocities.panX = this.smoothToward(this.velocities.panX, panX * settings.panSpeedPxPerSec * settings.sensitivity, settings.smoothing);
+        this.velocities.panY = this.smoothToward(this.velocities.panY, panY * settings.panSpeedPxPerSec * settings.sensitivity, settings.smoothing);
+        this.velocities.rotate = this.smoothToward(this.velocities.rotate, rot * settings.rotateDegPerSec * settings.sensitivity, settings.smoothing);
+        this.velocities.pitch = this.smoothToward(this.velocities.pitch, pit * settings.pitchDegPerSec * settings.sensitivity, settings.smoothing);
 
         // Pan (using smoothed velocity, instant application)
         // NOTE: Duration 0 to avoid animation stacking - smoothing is handled by velocity interpolation

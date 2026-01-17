@@ -26,18 +26,18 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
     const isCustom = activeMode === null;
 
     return (
-        <div className="bg-gradient-to-br from-zinc-900/80 to-black/80 border border-blue-500/20 rounded-2xl p-6 shadow-2xl shadow-blue-500/10">
+        <div className="bg-gradient-to-br from-zinc-900/80 to-black/80 border border-blue-500/20 rounded-2xl p-3 md:p-6 shadow-2xl shadow-blue-500/10">
             {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
-                <div className="text-blue-400 font-bold text-sm uppercase tracking-wider">
-                    Tactical Control Settings
+            <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-6">
+                <div className="w-1 h-4 md:h-6 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <div className="text-blue-400 font-bold text-xs md:text-sm uppercase tracking-wider">
+                    Control Settings
                 </div>
                 <div className="flex-1 h-[1px] bg-gradient-to-r from-blue-500/30 to-transparent"></div>
             </div>
 
             {/* Flight Mode Selection */}
-            <div className="mb-8 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-5">
+            <div className="mb-4 md:mb-8 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-3 md:p-5">
                 <div className="flex items-center gap-3 mb-4">
                     <span className="text-2xl">🚁</span>
                     <div>
@@ -47,10 +47,10 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                         </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
                     <button
                         onClick={() => handleFlightModeChange('joyflight')}
-                        className={`p-4 rounded-xl border-2 transition-all ${
+                        className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
                             activeMode === 'joyflight'
                                 ? 'bg-gradient-to-br from-purple-600 to-blue-600 border-purple-500 shadow-lg shadow-purple-500/50'
                                 : 'bg-black/40 border-white/10 hover:border-purple-500/50 hover:bg-purple-900/20'
@@ -61,7 +61,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </button>
                     <button
                         onClick={() => handleFlightModeChange('fighter')}
-                        className={`p-4 rounded-xl border-2 transition-all ${
+                        className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
                             activeMode === 'fighter'
                                 ? 'bg-gradient-to-br from-red-600 to-orange-600 border-red-500 shadow-lg shadow-red-500/50'
                                 : 'bg-black/40 border-white/10 hover:border-red-500/50 hover:bg-red-900/20'
@@ -72,7 +72,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </button>
                     <button
                         onClick={() => handleFlightModeChange('ufo')}
-                        className={`p-4 rounded-xl border-2 transition-all ${
+                        className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
                             activeMode === 'ufo'
                                 ? 'bg-gradient-to-br from-green-600 to-cyan-600 border-green-500 shadow-lg shadow-green-500/50'
                                 : 'bg-black/40 border-white/10 hover:border-green-500/50 hover:bg-green-900/20'
@@ -83,7 +83,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </button>
                     <button
                         onClick={() => handleFlightModeChange('satellite')}
-                        className={`p-4 rounded-xl border-2 transition-all ${
+                        className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
                             activeMode === 'satellite'
                                 ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-500 shadow-lg shadow-blue-500/50'
                                 : 'bg-black/40 border-white/10 hover:border-blue-500/50 hover:bg-blue-900/20'
@@ -95,7 +95,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     {/* Custom Mode Indicator */}
                     <button
                         disabled
-                        className={`p-4 rounded-xl border-2 transition-all ${
+                        className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
                             isCustom
                                 ? 'bg-gradient-to-br from-yellow-600 to-amber-600 border-yellow-500 shadow-lg shadow-yellow-500/50'
                                 : 'bg-black/40 border-white/10 opacity-50'
@@ -108,12 +108,12 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
             </div>
 
             {/* 2-Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-8">
 
                 {/* LEFT COLUMN: Input Control */}
-                <div className="space-y-6">
+                <div className="space-y-3 md:space-y-6">
                     {/* Unified Input Control Box */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">
                             <span className="text-cyan-400">⚡</span>
                             Input Control
@@ -145,11 +145,11 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                         <div className="mb-4 pb-4 border-b border-white/5">
                             <div className="flex justify-between items-center mb-2">
                                 <div>
-                                    <div className="text-white text-xs font-bold">Sensitivity</div>
-                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Response Curve</div>
+                                    <div className="text-white text-xs font-bold">Sensitivity (Global Speed)</div>
+                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Multiplies All Speeds</div>
                                 </div>
                                 <span className="text-cyan-400 font-mono text-xs font-bold px-2 py-1 bg-cyan-500/10 rounded border border-cyan-500/20">
-                                    {settings.sensitivity.toFixed(2)}
+                                    {settings.sensitivity.toFixed(2)}×
                                 </span>
                             </div>
                             <input
@@ -188,9 +188,9 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                 </div>
 
                 {/* RIGHT COLUMN: Movement Speeds */}
-                <div className="space-y-6">
+                <div className="space-y-3 md:space-y-6">
                     {/* Pan Speed */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <div className="text-white text-sm font-bold">Pan Speed</div>
@@ -217,7 +217,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </div>
 
                     {/* Rotate Speed */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <div className="text-white text-sm font-bold">Rotate Speed</div>
@@ -244,7 +244,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </div>
 
                     {/* Pitch Speed */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <div className="text-white text-sm font-bold">Pitch Speed</div>
@@ -289,7 +289,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </div>
 
                     {/* Current Pitch Angle Slider */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <div className="text-white text-sm font-bold">Camera Tilt Angle</div>
@@ -316,7 +316,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     </div>
 
                     {/* Zoom Speed */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <div className="text-white text-sm font-bold">Zoom Speed</div>
@@ -356,7 +356,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
 
                 <div className="max-w-2xl">
                     {/* Fly Animation (Discrete) */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
                         <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">
                             <span className="text-orange-400">🎯</span>
                             Discrete Actions (FlyTo)

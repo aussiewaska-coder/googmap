@@ -760,7 +760,7 @@ export default function MapView() {
                                 ))}
                             </div>
                             <button
-                                onClick={() => flyToLocation([AUSTRALIA_CENTER.center[0], AUSTRALIA_CENTER.center[1]], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
+                                onClick={() => flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
                                 className="w-full mt-4 h-12 bg-red-600/20 hover:bg-red-600/30 text-red-500 hover:text-red-400 text-xs font-black rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
                             >
                                 <Maximize size={14} /> Global View Reset

@@ -62,10 +62,15 @@ export function formatBindingWithLabel(
 
     if (binding.type === 'button') {
         const label = labelForIndex(profile.labels, binding.index);
-        if (label) {
-            return `Button ${binding.index} (${formatButtonLabel(label)})`;
+        const labelText = label ? ` (${formatButtonLabel(label)})` : '';
+
+        // If button has direction (for axis commands), show it
+        if ('sign' in binding && binding.sign) {
+            const direction = binding.sign > 0 ? '→' : '←';
+            return `Button ${binding.index}${labelText} ${direction}`;
         }
-        return `Button ${binding.index}`;
+
+        return `Button ${binding.index}${labelText}`;
     }
 
     if (binding.type === 'axis') {

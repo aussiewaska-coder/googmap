@@ -73,6 +73,7 @@ export type Command =
 export type Binding =
     | { type: 'button'; index: number }
     | { type: 'button'; index: number; analog: true }
+    | { type: 'button'; index: number; sign: 1 | -1 }  // Button with direction (for axis commands)
     | { type: 'axis'; index: number; sign: 1 | -1 };
 
 // ============================================================================

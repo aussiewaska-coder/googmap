@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Radio } from 'lucide-react';
+import { X, Radio, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Binding, COMMAND_DEFINITIONS } from '@/app/lib/gamepad/types-v2';
 import { getActiveGamepad } from '@/app/lib/gamepad/gamepad-reader';
 import { createSnapshot, detectNewBinding } from '@/app/lib/gamepad/binding-capture';
@@ -15,6 +15,8 @@ interface BindModalProps {
 export default function BindModal({ action, onCapture, onCancel }: BindModalProps) {
     const [listening, setListening] = useState(true);
     const [preview, setPreview] = useState<string>('Waiting for input...');
+    const [capturedBinding, setCapturedBinding] = useState<Binding | null>(null);
+    const [showDirectionChooser, setShowDirectionChooser] = useState(false);
 
     const actionDef = COMMAND_DEFINITIONS.find(a => a.key === action);
 
@@ -31,7 +33,15 @@ export default function BindModal({ action, onCapture, onCancel }: BindModalProp
             const binding = detectNewBinding(prevSnapshot, currSnapshot, 0.12);
             if (binding) {
                 setListening(false);
-                onCapture(binding);
+
+                // If it's a button binding for an axis command, show direction chooser
+                if (binding.type === 'button' && actionDef?.type === 'axis') {
+                    setCapturedBinding(binding);
+                    setShowDirectionChooser(true);
+                } else {
+                    // Directly capture for non-axis commands or axis bindings
+                    onCapture(binding);
+                }
                 return;
             }
 
@@ -128,6 +138,59 @@ export default function BindModal({ action, onCapture, onCancel }: BindModalProp
                     </button>
                 </div>
             </div>
+
+            {/* Direction Chooser Overlay (shown when button captured for axis command) */}
+            {showDirectionChooser && capturedBinding && capturedBinding.type === 'button' && (
+                <div className="absolute inset-0 bg-black/95 backdrop-blur-lg flex items-center justify-center animate-in fade-in duration-200">
+                    <div className="bg-gradient-to-br from-zinc-900 to-black border-4 border-yellow-500 rounded-3xl shadow-2xl shadow-yellow-500/50 p-8 max-w-lg w-full">
+                        <div className="text-center mb-6">
+                            <h3 className="text-white font-black text-2xl mb-2">⚡ CHOOSE DIRECTION ⚡</h3>
+                            <p className="text-white/60 text-sm">
+                                Button {capturedBinding.index} captured for <span className="text-cyan-400 font-bold">{actionDef?.label}</span>
+                            </p>
+                            <p className="text-yellow-300 text-xs mt-2 font-bold">
+                                Which direction should this button control?
+                            </p>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => {
+                                    // Apply negative direction (-1)
+                                    onCapture({ ...capturedBinding, sign: -1 } as Binding);
+                                }}
+                                className="flex-1 h-20 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-black text-lg transition-all shadow-lg flex flex-col items-center justify-center gap-2"
+                            >
+                                <ArrowLeft size={32} />
+                                <span>NEGATIVE</span>
+                                <span className="text-xs font-normal opacity-80">(Left / Up / CCW)</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // Apply positive direction (+1)
+                                    onCapture({ ...capturedBinding, sign: 1 } as Binding);
+                                }}
+                                className="flex-1 h-20 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-xl font-black text-lg transition-all shadow-lg flex flex-col items-center justify-center gap-2"
+                            >
+                                <ArrowRight size={32} />
+                                <span>POSITIVE</span>
+                                <span className="text-xs font-normal opacity-80">(Right / Down / CW)</span>
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setCapturedBinding(null);
+                                setShowDirectionChooser(false);
+                                setListening(true);
+                            }}
+                            className="w-full mt-4 h-10 bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 text-sm font-bold rounded-lg transition-all"
+                        >
+                            ← Go Back
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

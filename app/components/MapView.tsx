@@ -1037,16 +1037,31 @@ export default function MapView() {
                                                 </>
                                             )}
                                         </button>
-                                        <button
-                                            onClick={handleLocateMe}
-                                            className="h-12 bg-gradient-to-br from-purple-600/20 to-purple-800/20 hover:from-purple-600/30 hover:to-purple-800/30 border border-purple-500/30 rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(147,51,234,0.2)] hover:shadow-[0_0_15px_rgba(147,51,234,0.4)]"
-                                        >
-                                            <Locate size={16} className="text-purple-400" />
-                                            <div className="flex flex-col items-start">
-                                                <div className="text-[9px] text-purple-400">LOCATE</div>
-                                                <div className="text-[10px]">ME</div>
+                                        {/* Terrain Intensity Slider */}
+                                        <div className="col-span-2 p-3 bg-white/5 border border-white/10 rounded-lg">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="text-green-400 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                                                    <Mountain size={14} className="text-green-400" />
+                                                    Terrain Intensity
+                                                </div>
+                                                <span className="text-white font-mono text-xs">{terrainExaggeration.toFixed(1)}x</span>
                                             </div>
-                                        </button>
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="3.0"
+                                                step="0.1"
+                                                value={terrainExaggeration}
+                                                onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-green-500"
+                                                disabled={!terrainEnabled}
+                                            />
+                                            <div className="flex justify-between text-[10px] text-white/40 mt-1">
+                                                <span>0.5x</span>
+                                                <span>1.5x</span>
+                                                <span>3.0x</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </section>
 

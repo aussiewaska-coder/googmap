@@ -95,30 +95,28 @@ export class MapController {
         this.velocities.rotate = this.smoothToward(this.velocities.rotate, rot * settings.rotateDegPerSec, settings.smoothing);
         this.velocities.pitch = this.smoothToward(this.velocities.pitch, pit * settings.pitchDegPerSec, settings.smoothing);
 
-        // Get easing function for glide animation
-        const glideEasingFn = getGlideEasingFn(settings.glideEasing);
-
-        // Pan (using smoothed velocity + glide animation)
+        // Pan (using smoothed velocity, instant application)
+        // NOTE: Duration 0 to avoid animation stacking - smoothing is handled by velocity interpolation
         if (this.velocities.panX || this.velocities.panY) {
             this.map.panBy(
                 [this.velocities.panX * dt, this.velocities.panY * dt],
-                { duration: settings.glideMs, easing: glideEasingFn }
+                { duration: 0 }
             );
         }
 
-        // Rotate (using smoothed velocity + glide animation)
+        // Rotate (using smoothed velocity, instant application)
         if (this.velocities.rotate) {
             this.accumulators.bearing += this.velocities.rotate * dt;
             if (Math.abs(this.accumulators.bearing) > 1) {
                 this.map.rotateTo(
                     this.map.getBearing() + this.accumulators.bearing,
-                    { duration: settings.glideMs, easing: glideEasingFn }
+                    { duration: 0 }
                 );
                 this.accumulators.bearing = 0;
             }
         }
 
-        // Pitch (using smoothed velocity + glide animation)
+        // Pitch (using smoothed velocity, instant application)
         if (this.velocities.pitch) {
             this.accumulators.pitch += this.velocities.pitch * dt;
             if (Math.abs(this.accumulators.pitch) > 1) {
@@ -131,8 +129,7 @@ export class MapController {
 
                 this.map.easeTo({
                     pitch: newPitch,
-                    duration: settings.glideMs,
-                    easing: glideEasingFn,
+                    duration: 0,
                     around: this.map.unproject([centerPoint.x, centerPoint.y])
                 });
                 this.accumulators.pitch = 0;

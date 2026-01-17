@@ -19,7 +19,7 @@ export function readBindingValue(gp: Gamepad, binding?: Binding): number {
         const buttonValue = b.value ?? (b.pressed ? 1 : 0);
 
         // If button binding has a sign (for directional axis commands), apply it
-        if ('sign' in binding && binding.sign) {
+        if ('sign' in binding && typeof binding.sign === 'number') {
             return buttonValue * binding.sign;
         }
 

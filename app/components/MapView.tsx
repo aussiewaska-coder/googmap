@@ -70,6 +70,7 @@ export default function MapView() {
             container: mapContainer.current,
             maxPitch: 85, // Override default 60° limit (MapLibre GL max is 85°)
             minZoom: 1.5, // Prevent zooming out beyond globe view
+            maxZoom: 24, // Allow maximum zoom to ground level (street view detail)
             style: {
                 version: 8,
                 sources: {

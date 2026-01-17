@@ -123,6 +123,14 @@ export class MapController {
             return;
         }
 
+        // CHECK IF MAP IS ANIMATING (flyTo in progress)
+        const isAnimating = this.map.isMoving() || this.map.isEasing();
+        if (isAnimating) {
+            console.log('⏸️ [MapController] Map is animating - PAUSING controller input to not interrupt flyTo');
+            this.animationFrameId = requestAnimationFrame(this.loop);
+            return;
+        }
+
         // Determine active context
         const activeContext = this.contextManager.updateContext(
             { isSettingsOpen: this.commandContext.ui.isSettingsOpen() },

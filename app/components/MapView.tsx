@@ -449,25 +449,64 @@ export default function MapView() {
 
 
 
-    const flyToLocation = (center: [number, number], zoom = 12) => {
+    const flyToLocation = (center: [number, number], zoom = 12, source = 'unknown') => {
         if (!map.current) return;
-        console.log(`[MapView] Flying to ${center}`);
-        map.current.flyTo({
+
+        console.log('');
+        console.log('🛫 ===== FLY TO LOCATION =====');
+        console.log('🛫 Source:', source);
+        console.log('🛫 Target center:', center);
+        console.log('🛫 Target zoom:', zoom);
+        console.log('🛫 Current center:', map.current.getCenter());
+        console.log('🛫 Current zoom:', map.current.getZoom());
+        console.log('🛫 Map is currently moving?', map.current.isMoving());
+        console.log('🛫 Map is currently easing?', map.current.isEasing());
+
+        const flyOptions = {
             center,
             zoom,
+            duration: 1800,
+            curve: 1.4,
+            speed: 0.8,
+            easing: (t: number) => {
+                // easeInOutCubic
+                return t < 0.5
+                    ? 4 * t * t * t
+                    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            },
             essential: true,
-        });
+        };
+
+        console.log('🛫 Flying with graceful easing...');
+        console.log('🛫 Duration:', flyOptions.duration, 'ms');
+        console.log('🛫 Speed:', flyOptions.speed);
+        console.log('🛫 Curve:', flyOptions.curve);
+
+        const onMoveEnd = () => {
+            console.log('✅ [FlyTo] Flight completed!');
+            console.log('🛫 Final center:', map.current?.getCenter());
+            console.log('🛫 Final zoom:', map.current?.getZoom());
+            console.log('🛫 ===== FLY TO COMPLETE =====');
+            console.log('');
+            map.current?.off('moveend', onMoveEnd);
+        };
+        map.current.once('moveend', onMoveEnd);
+
+        map.current.flyTo(flyOptions);
     };
 
     const handleLocateMe = () => {
         if (!navigator.geolocation) return;
 
+        console.log('📍 [Locate Me Button] Requesting geolocation...');
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { longitude, latitude } = position.coords;
+                console.log('📍 [Locate Me Button] Position received:', latitude, longitude);
 
                 // Jump to location
-                flyToLocation([longitude, latitude], 15);
+                flyToLocation([longitude, latitude], 15, 'Locate Me Button');
 
                 // Create or move marker
                 if (map.current) {
@@ -499,7 +538,7 @@ export default function MapView() {
             setSearchResults(data);
             if (data.length > 0) {
                 const first = data[0];
-                flyToLocation([parseFloat(first.lon), parseFloat(first.lat)]);
+                flyToLocation([parseFloat(first.lon), parseFloat(first.lat)], 12, 'Search Query');
             }
         } catch (e) {
             console.error('[Search] Error', e);
@@ -670,7 +709,7 @@ export default function MapView() {
                                             key={i}
                                             className="w-full text-left p-4 hover:bg-white/5 border-b border-white/5 last:border-none transition group"
                                             onClick={() => {
-                                                flyToLocation([parseFloat(r.lon), parseFloat(r.lat)]);
+                                                flyToLocation([parseFloat(r.lon), parseFloat(r.lat)], 12, 'Search Result Click');
                                                 setSearchResults([]);
                                                 setSearchQuery('');
                                             }}
@@ -696,7 +735,7 @@ export default function MapView() {
                                 {Object.entries(CITIES).map(([name, coords]) => (
                                     <button
                                         key={name}
-                                        onClick={() => flyToLocation(coords as [number, number])}
+                                        onClick={() => flyToLocation(coords as [number, number], 12, `City Button: ${name}`)}
                                         className="h-10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-[11px] font-bold rounded-lg border border-white/5 transition-all flex items-center justify-center gap-2"
                                     >
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -705,7 +744,7 @@ export default function MapView() {
                                 ))}
                             </div>
                             <button
-                                onClick={() => map.current?.flyTo({ ...AUSTRALIA_CENTER, essential: true })}
+                                onClick={() => flyToLocation([AUSTRALIA_CENTER.center[0], AUSTRALIA_CENTER.center[1]], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
                                 className="w-full mt-4 h-12 bg-red-600/20 hover:bg-red-600/30 text-red-500 hover:text-red-400 text-xs font-black rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
                             >
                                 <Maximize size={14} /> Global View Reset

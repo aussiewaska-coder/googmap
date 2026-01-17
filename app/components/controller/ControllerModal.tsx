@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import maplibregl from 'maplibre-gl';
-import { ControllerProfileV2 } from '@/app/lib/gamepad/types-v2';
+import { ControllerProfileV2, Context } from '@/app/lib/gamepad/types-v2';
 import { loadSessionProfile, saveSessionProfile } from '@/app/lib/gamepad/storage';
 import { applyTacticalPresetV2, makeDefaultProfileV2 } from '@/app/lib/gamepad/defaults-v2';
 import ControllerHeader from './ControllerHeader';
@@ -141,11 +141,19 @@ export default function ControllerModal({ onClose, onSave, onSaveClose, mapRef }
                         {/* Right: Bindings */}
                         <BindingsList
                             profile={profile}
-                            onBind={(action) => setBindingAction(action)}
-                            onClear={(action) => {
+                            onBind={(commandKey) => setBindingAction(commandKey)}
+                            onClear={(commandKey) => {
+                                // Extract context from command key (e.g., "MAP.PAN_X" -> "map")
+                                const context = commandKey.split('.')[0].toLowerCase() as Context;
                                 setProfile(prev => ({
                                     ...prev,
-                                    bindings: { ...prev.bindings, [action]: undefined }
+                                    bindings: {
+                                        ...prev.bindings,
+                                        [context]: {
+                                            ...prev.bindings[context],
+                                            [commandKey]: undefined
+                                        }
+                                    }
                                 }));
                             }}
                         />
@@ -174,10 +182,23 @@ export default function ControllerModal({ onClose, onSave, onSaveClose, mapRef }
                 <BindModal
                     action={bindingAction}
                     onCapture={(binding) => {
-                        setProfile(prev => ({
-                            ...prev,
-                            bindings: { ...prev.bindings, [bindingAction]: binding }
-                        }));
+                        // Extract context from command key (e.g., "MAP.PAN_X" -> "map")
+                        const context = bindingAction.split('.')[0].toLowerCase() as Context;
+
+                        const updatedProfile = {
+                            ...profile,
+                            bindings: {
+                                ...profile.bindings,
+                                [context]: {
+                                    ...profile.bindings[context],
+                                    [bindingAction]: binding
+                                }
+                            }
+                        };
+
+                        setProfile(updatedProfile);
+                        saveSessionProfile(updatedProfile);
+                        onSave(updatedProfile);
                         setBindingAction(null);
                     }}
                     onCancel={() => setBindingAction(null)}

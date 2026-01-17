@@ -780,6 +780,7 @@ export default function MapView() {
         if (!target) return;
 
         console.log('🛸 [MapView] Activating orbit mode');
+        setIsSidebarOpen(false); // Close sidebar for immersive view
         await cameraControllerRef.current.startOrbit(target);
     };
 
@@ -789,6 +790,7 @@ export default function MapView() {
         if (!target) return;
 
         console.log('🛰️ [MapView] Activating satellite mode');
+        setIsSidebarOpen(false); // Close sidebar for immersive view
         await cameraControllerRef.current.startSatellite(target);
     };
 

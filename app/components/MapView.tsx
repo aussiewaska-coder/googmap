@@ -559,25 +559,55 @@ export default function MapView() {
         console.log('🛫 Map is currently moving?', map.current.isMoving());
         console.log('🛫 Map is currently easing?', map.current.isEasing());
 
+        // Calculate distance for adaptive animation
+        const currentCenter = map.current.getCenter();
+        const dx = center[0] - currentCenter.lng;
+        const dy = center[1] - currentCenter.lat;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Cinematic parameters based on distance
+        const isCinematic = source.includes('Flight Deck') || source.includes('City');
+        let duration = 1800;
+        let curve = 1.4;
+        let speed = 0.8;
+
+        if (isCinematic) {
+            // Long distance = more dramatic curve and longer duration
+            if (distance > 10) {
+                duration = 3200;
+                curve = 1.8;
+                speed = 0.6;
+            } else if (distance > 5) {
+                duration = 2400;
+                curve = 1.6;
+                speed = 0.7;
+            } else {
+                duration = 2000;
+                curve = 1.5;
+                speed = 0.75;
+            }
+        }
+
         const flyOptions = {
             center,
             zoom,
-            duration: 1800,
-            curve: 1.4,
-            speed: 0.8,
+            duration,
+            curve,
+            speed,
             easing: (t: number) => {
-                // easeInOutCubic
+                // easeInOutQuart - smoother than cubic
                 return t < 0.5
-                    ? 4 * t * t * t
-                    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    ? 8 * t * t * t * t
+                    : 1 - Math.pow(-2 * t + 2, 4) / 2;
             },
             essential: true,
         };
 
-        console.log('🛫 Flying with graceful easing...');
+        console.log('🛫 Flying with cinematic easing...');
         console.log('🛫 Duration:', flyOptions.duration, 'ms');
         console.log('🛫 Speed:', flyOptions.speed);
         console.log('🛫 Curve:', flyOptions.curve);
+        console.log('🛫 Distance:', distance.toFixed(2), '°');
 
         const onMoveEnd = () => {
             console.log('✅ [FlyTo] Flight completed!');

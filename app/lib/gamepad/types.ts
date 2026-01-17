@@ -3,7 +3,6 @@ export type Binding =
     | { type: 'axis'; index: number; sign: 1 | -1 };
 
 export type FlightMode = "joyflight" | "fighter" | "ufo" | "satellite";
-export type GlideEasing = "linear" | "easeOut" | "easeInOut";
 export type FlyEasing = "easeOut" | "easeInOut" | "easeInCubic" | "easeOutQuint";
 
 export interface ControllerProfile {
@@ -14,7 +13,7 @@ export interface ControllerProfile {
 
         // input processing
         deadzone: number;           // 0..0.35
-        sensitivity: number;        // response curve (>1 more aggressive)
+        sensitivity: number;        // global speed multiplier (0.5-2.0, default 1.0)
         smoothing: number;          // 0..1, inertia factor
 
         // continuous camera speeds (per second)
@@ -22,10 +21,7 @@ export interface ControllerProfile {
         rotateDegPerSec: number;
         pitchDegPerSec: number;
         zoomUnitsPerSec: number;
-
-        // continuous camera animation
-        glideMs: number;            // 0..80 recommended
-        glideEasing: GlideEasing;
+        zoomIntensity: number;      // 0.1-1.0, button zoom feel (default 0.2)
 
         // discrete transitions (recenter/go-to)
         flySpeed: number;           // FlyToOptions.speed
@@ -39,7 +35,6 @@ export interface ControllerProfile {
         pan_y?: Binding;
         rotate_x?: Binding;
         pitch_y?: Binding;
-        zoom?: Binding;             // analog zoom (optional)
         zoom_in?: Binding;          // button zoom (optional)
         zoom_out?: Binding;
         reset_north?: Binding;
@@ -60,8 +55,8 @@ export const ACTION_DEFINITIONS: readonly ActionDefinition[] = [
     { key: 'pan_y', label: 'Pan Vertical', description: 'Move up/down', type: 'axis' },
     { key: 'rotate_x', label: 'Rotate Map', description: 'Change bearing', type: 'axis' },
     { key: 'pitch_y', label: 'Pitch Camera', description: 'Tilt view angle', type: 'axis' },
-    { key: 'zoom_in', label: 'Zoom In', description: 'Tap to increase speed: 1x→2x→4x→8x→stop', type: 'button' },
-    { key: 'zoom_out', label: 'Zoom Out', description: 'Tap to increase speed: 1x→2x→4x→8x→stop', type: 'button' },
+    { key: 'zoom_in', label: 'Zoom In', description: 'Tap to cycle speed (1→2→4→8→stop) × zoomIntensity', type: 'button' },
+    { key: 'zoom_out', label: 'Zoom Out', description: 'Tap to cycle speed (1→2→4→8→stop) × zoomIntensity', type: 'button' },
     { key: 'reset_north', label: 'Reset North', description: 'Point map north', type: 'button' },
     { key: 'recenter', label: 'Recenter', description: 'Return to starting view', type: 'button' },
     { key: 'toggle_pitch', label: 'Toggle Pitch', description: '0° ↔ 60° pitch', type: 'button' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { ControllerProfile, FlightMode, GlideEasing, FlyEasing } from '@/app/lib/gamepad/types';
+import { ControllerProfile, FlightMode, FlyEasing } from '@/app/lib/gamepad/types';
 import { applyFlightModePreset, detectFlightMode } from '@/app/lib/gamepad/flight-modes';
 
 interface SettingsPanelProps {
@@ -339,6 +339,33 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                             <span>SMOOTH</span>
                             <span>NORMAL</span>
                             <span>ROCKET</span>
+                        </div>
+                    </div>
+
+                    {/* Zoom Intensity */}
+                    <div className="bg-black/40 rounded-xl p-3 md:p-4 border border-white/5">
+                        <div className="flex justify-between items-center mb-3">
+                            <div>
+                                <div className="text-white text-sm font-bold">Zoom Intensity</div>
+                                <div className="text-white/40 text-[10px] uppercase tracking-wide">Button Zoom Feel</div>
+                            </div>
+                            <span className="text-cyan-400 font-mono text-sm font-bold px-3 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                                {settings.zoomIntensity.toFixed(1)}
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.1"
+                            value={settings.zoomIntensity}
+                            onChange={(e) => updateSetting('zoomIntensity', parseFloat(e.target.value))}
+                            className="w-full h-2 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-gradient-to-br [&::-moz-range-thumb]:from-cyan-400 [&::-moz-range-thumb]:to-blue-600 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:shadow-blue-500/50"
+                        />
+                        <div className="flex justify-between text-[9px] text-white/30 mt-2 font-mono uppercase">
+                            <span>SUBTLE</span>
+                            <span>MODERATE</span>
+                            <span>INTENSE</span>
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,7 @@ import { ControllerProfile, Binding } from './types';
 import { loadSessionProfile } from './storage';
 import { DEFAULT_PROFILE, applyTacticalPreset } from './defaults';
 import { getActiveGamepad, readBindingValue, applyDeadzone } from './gamepad-reader';
-import { getGlideEasingFn, getFlyEasingFn } from './flight-modes';
+import { getFlyEasingFn } from './flight-modes';
 
 export class MapController {
     private map: maplibregl.Map;
@@ -68,6 +68,26 @@ export class MapController {
         return current + (target - current) * smoothing;
     }
 
+    /**
+     * Get the pivot point for pitch rotation (70% down the viewport, closer to camera).
+     */
+    private getPitchPivotPoint(): maplibregl.LngLat {
+        const container = this.map.getContainer();
+        const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
+        return this.map.unproject([centerPoint.x, centerPoint.y]);
+    }
+
+    /**
+     * Cycle zoom speed through progression: 0 → 1 → 2 → 4 → 8 → 0
+     */
+    private cycleZoomSpeed(current: number): number {
+        if (current === 0) return 1;
+        if (current === 1) return 2;
+        if (current === 2) return 4;
+        if (current === 4) return 8;
+        return 0;
+    }
+
     private processGamepad(gp: Gamepad, dt: number) {
         const { settings, bindings } = this.profile;
 
@@ -112,14 +132,10 @@ export class MapController {
                 const maxPitch = settings.unlockMaxPitch ? 85 : 60;
                 const newPitch = Math.max(0, Math.min(maxPitch, this.map.getPitch() + this.accumulators.pitch));
 
-                // Rotate around a point 70% down the viewport (closer to camera position)
-                const container = this.map.getContainer();
-                const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
-
                 this.map.easeTo({
                     pitch: newPitch,
                     duration: 0,
-                    around: this.map.unproject([centerPoint.x, centerPoint.y])
+                    around: this.getPitchPivotPoint()
                 });
                 this.accumulators.pitch = 0;
             }
@@ -164,15 +180,11 @@ export class MapController {
                 const currentPitch = this.map.getPitch();
                 const maxPitch = settings.unlockMaxPitch ? 85 : 60;
                 const targetPitch = currentPitch < 30 ? maxPitch : 0;
-                
-                // Rotate around a point 70% down the viewport (closer to camera position)
-                const container = this.map.getContainer();
-                const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
-                
-                this.map.easeTo({ 
-                    pitch: targetPitch, 
+
+                this.map.easeTo({
+                    pitch: targetPitch,
                     duration: 300,
-                    around: this.map.unproject([centerPoint.x, centerPoint.y])
+                    around: this.getPitchPivotPoint()
                 });
             }
         }
@@ -187,12 +199,7 @@ export class MapController {
                     this.zoomOutSpeed = 0;
                     this.zoomInSpeed = 0;
                 } else {
-                    // Cycle through speeds: 0 → 1 → 2 → 4 → 8 → 0
-                    if (this.zoomInSpeed === 0) this.zoomInSpeed = 1;
-                    else if (this.zoomInSpeed === 1) this.zoomInSpeed = 2;
-                    else if (this.zoomInSpeed === 2) this.zoomInSpeed = 4;
-                    else if (this.zoomInSpeed === 4) this.zoomInSpeed = 8;
-                    else this.zoomInSpeed = 0;
+                    this.zoomInSpeed = this.cycleZoomSpeed(this.zoomInSpeed);
                 }
             }
         }
@@ -206,22 +213,17 @@ export class MapController {
                     this.zoomInSpeed = 0;
                     this.zoomOutSpeed = 0;
                 } else {
-                    // Cycle through speeds: 0 → 1 → 2 → 4 → 8 → 0
-                    if (this.zoomOutSpeed === 0) this.zoomOutSpeed = 1;
-                    else if (this.zoomOutSpeed === 1) this.zoomOutSpeed = 2;
-                    else if (this.zoomOutSpeed === 2) this.zoomOutSpeed = 4;
-                    else if (this.zoomOutSpeed === 4) this.zoomOutSpeed = 8;
-                    else this.zoomOutSpeed = 0;
+                    this.zoomOutSpeed = this.cycleZoomSpeed(this.zoomOutSpeed);
                 }
             }
         }
 
-        // Apply continuous zoom based on current speed (20% intensity)
+        // Apply continuous zoom based on current speed
         if (this.zoomInSpeed > 0) {
-            const zoomDelta = this.zoomInSpeed * settings.zoomUnitsPerSec * dt * 0.2;
+            const zoomDelta = this.zoomInSpeed * settings.zoomUnitsPerSec * settings.sensitivity * settings.zoomIntensity * dt;
             this.map.setZoom(this.map.getZoom() + zoomDelta);
         } else if (this.zoomOutSpeed > 0) {
-            const zoomDelta = this.zoomOutSpeed * settings.zoomUnitsPerSec * dt * 0.2;
+            const zoomDelta = this.zoomOutSpeed * settings.zoomUnitsPerSec * settings.sensitivity * settings.zoomIntensity * dt;
             this.map.setZoom(this.map.getZoom() - zoomDelta);
         }
     }

@@ -26,8 +26,7 @@ export function loadSessionProfile(): ControllerProfile | null {
             // Add flight mode settings defaults if missing
             if (s.flightMode === undefined) s.flightMode = DEFAULT_PROFILE.settings.flightMode;
             if (s.smoothing === undefined) s.smoothing = DEFAULT_PROFILE.settings.smoothing;
-            if (s.glideMs === undefined) s.glideMs = DEFAULT_PROFILE.settings.glideMs;
-            if (s.glideEasing === undefined) s.glideEasing = DEFAULT_PROFILE.settings.glideEasing;
+            if (s.zoomIntensity === undefined) s.zoomIntensity = DEFAULT_PROFILE.settings.zoomIntensity;
             if (s.flySpeed === undefined) s.flySpeed = DEFAULT_PROFILE.settings.flySpeed;
             if (s.flyCurve === undefined) s.flyCurve = DEFAULT_PROFILE.settings.flyCurve;
             if (s.flyEasing === undefined) s.flyEasing = DEFAULT_PROFILE.settings.flyEasing;

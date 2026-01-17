@@ -114,6 +114,7 @@ export default function DebugModal({ profile, mapRef }: DebugModalProps) {
                         <Value label="Deadzone" value={profile.settings.deadzone.toFixed(2)} />
                         <Value label="Smoothing" value={profile.settings.smoothing.toFixed(2)} />
                         <Value label="Sensitivity (Global ×)" value={`${profile.settings.sensitivity.toFixed(2)}×`} />
+                        <Value label="Zoom Intensity" value={profile.settings.zoomIntensity.toFixed(1)} />
                     </Section>
 
                     {/* Movement Speeds (per second) */}
@@ -144,10 +145,8 @@ export default function DebugModal({ profile, mapRef }: DebugModalProps) {
                         />
                     </Section>
 
-                    {/* Animation Settings */}
-                    <Section title="Animation Settings">
-                        <Value label="Glide Duration" value={`${profile.settings.glideMs}ms`} />
-                        <Value label="Glide Easing" value={profile.settings.glideEasing} />
+                    {/* Button Animation Settings */}
+                    <Section title="Button Animation (flyTo)">
                         <Value label="Fly Speed" value={profile.settings.flySpeed.toFixed(2)} />
                         <Value label="Fly Curve" value={profile.settings.flyCurve.toFixed(2)} />
                         <Value label="Fly Easing" value={profile.settings.flyEasing} />

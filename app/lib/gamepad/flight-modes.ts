@@ -1,4 +1,4 @@
-import { FlightMode, FlyEasing } from './types';
+import { FlightMode, FlyEasing } from './types-v2';
 
 export interface FlightModePreset {
     panSpeedPxPerSec: number;
@@ -55,6 +55,17 @@ export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
         smoothing: 0.20,
         flySpeed: 0.7,
         flyCurve: 1.8,
+        flyEasing: 'easeInOut',
+    },
+    drone_gimbal: {
+        panSpeedPxPerSec: 300,
+        rotateDegPerSec: 60,
+        pitchDegPerSec: 50,
+        zoomUnitsPerSec: 1.0,
+        zoomIntensity: 0.3,
+        smoothing: 0.15,
+        flySpeed: 0.8,
+        flyCurve: 1.3,
         flyEasing: 'easeInOut',
     },
 };
@@ -120,7 +131,7 @@ export function isPresetActive(settings: any, mode: FlightMode): boolean {
  * Returns the flight mode if it matches, or null if custom.
  */
 export function detectFlightMode(settings: any): FlightMode | null {
-    const modes: FlightMode[] = ['joyflight', 'fighter', 'ufo', 'satellite'];
+    const modes: FlightMode[] = ['joyflight', 'fighter', 'ufo', 'satellite', 'drone_gimbal'];
 
     for (const mode of modes) {
         if (isPresetActive(settings, mode)) {

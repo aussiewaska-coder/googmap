@@ -21,9 +21,10 @@ import {
 } from 'lucide-react';
 
 import { MapController } from '../lib/gamepad/map-controller';
-import { ControllerProfile } from '../lib/gamepad/types';
+import { ControllerProfileV2, CommandContext } from '../lib/gamepad/types-v2';
 import { loadSessionProfile } from '../lib/gamepad/storage';
-import { applyTacticalPreset } from '../lib/gamepad/defaults';
+import { applyTacticalPresetV2 } from '../lib/gamepad/defaults-v2';
+import { ContextManager } from '../lib/gamepad/context-manager';
 import ControllerModal from './controller/ControllerModal';
 import DebugModal from './controller/DebugModal';
 
@@ -57,9 +58,10 @@ export default function MapView() {
     const [isWazeEnabled, setIsWazeEnabled] = useState(false);
     const [timeHorizon, setTimeHorizon] = useState(1); // in hours
     const [showControllerModal, setShowControllerModal] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const controllerRef = useRef<MapController | null>(null);
-    const [currentProfile, setCurrentProfile] = useState<ControllerProfile>(() => {
-        return loadSessionProfile() || applyTacticalPreset();
+    const [currentProfile, setCurrentProfile] = useState<ControllerProfileV2>(() => {
+        return loadSessionProfile() || applyTacticalPresetV2();
     });
 
     useEffect(() => {
@@ -210,14 +212,54 @@ export default function MapView() {
     useEffect(() => {
         if (!map.current || !isMapReady) return;
 
-        const controller = new MapController(map.current);
+        // Command handlers for UI interactions
+        const handleReportTraffic = () => {
+            console.log('[MapView] Report traffic triggered - Waze-like report workflow');
+            // TODO: Implement Waze-like report modal/workflow
+        };
+
+        const handleMenuNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
+            console.log('[MapView] Menu navigate:', direction);
+            // TODO: Implement focus management for settings panel
+        };
+
+        const handleMenuSelect = () => {
+            console.log('[MapView] Menu select triggered');
+            // TODO: Activate focused control in settings panel
+        };
+
+        const handleMenuBack = () => {
+            console.log('[MapView] Menu back triggered');
+            setIsSettingsOpen(false);
+        };
+
+        // Create CommandContext for dispatcher
+        const commandContext: CommandContext = {
+            map: map.current,
+            ui: {
+                toggleSettings: () => setIsSettingsOpen(prev => !prev),
+                isSettingsOpen: () => isSettingsOpen,
+                menuNavigate: handleMenuNavigate,
+                menuSelect: handleMenuSelect,
+                menuBack: handleMenuBack,
+            },
+            integrations: {
+                reportTrafficPolice: handleReportTraffic,
+            },
+        };
+
+        // Create ContextManager for context switching
+        const contextManager = new ContextManager();
+
+        // Initialize MapController with v2 context
+        const controller = new MapController(map.current, commandContext, contextManager);
         controllerRef.current = controller;
 
         return () => {
             controller.cleanup();
             controllerRef.current = null;
         };
-    }, [isMapReady]);
+    }, [isMapReady, isSettingsOpen]);
 
     // Waze Layers Initialization & Updates
     useEffect(() => {
@@ -967,11 +1009,11 @@ export default function MapView() {
             {showControllerModal && (
                 <ControllerModal
                     onClose={() => setShowControllerModal(false)}
-                    onSave={(profile: ControllerProfile) => {
+                    onSave={(profile: ControllerProfileV2) => {
                         controllerRef.current?.updateProfile(profile);
                         setCurrentProfile(profile);
                     }}
-                    onSaveClose={(profile: ControllerProfile) => {
+                    onSaveClose={(profile: ControllerProfileV2) => {
                         controllerRef.current?.updateProfile(profile);
                         setCurrentProfile(profile);
                         setShowControllerModal(false);

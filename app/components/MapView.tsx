@@ -42,6 +42,7 @@ import { TargetOverlay } from '../map/ui/TargetOverlay';
 import { ModeIndicatorLED } from '../map/ui/ModeIndicatorLED';
 import { cameraModeStore, CameraModeState } from '../map/state/cameraModeStore';
 import { FlightDeckModal } from './FlightDeckModal';
+import { Toast } from './Toast';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -83,6 +84,7 @@ export default function MapView() {
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isFlightDeckOpen, setIsFlightDeckOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<{ message: string; type: 'orbit' | 'satellite' } | null>(null);
 
     // Orbit & Satellite Mode state
     const [cameraModeState, setCameraModeState] = useState<CameraModeState>(cameraModeStore.getState());
@@ -782,6 +784,12 @@ export default function MapView() {
         console.log('🛸 [MapView] Activating orbit mode');
         setIsSidebarOpen(false); // Close sidebar for immersive view
         await cameraControllerRef.current.startOrbit(target);
+
+        // Show toast notification
+        setToastMessage({
+            message: 'Tactical reconnaissance orbit established',
+            type: 'orbit'
+        });
     };
 
     const handleSatelliteMode = async () => {
@@ -792,6 +800,12 @@ export default function MapView() {
         console.log('🛰️ [MapView] Activating satellite mode');
         setIsSidebarOpen(false); // Close sidebar for immersive view
         await cameraControllerRef.current.startSatellite(target);
+
+        // Show toast notification
+        setToastMessage({
+            message: 'Satellite overview mode engaged',
+            type: 'satellite'
+        });
     };
 
     const handleDismissTargeting = () => {
@@ -1273,30 +1287,39 @@ export default function MapView() {
                 <button
                     onClick={() => setIsSearchOpen(true)}
                     className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95"
-                    title="Search Locations"
                 >
                     <Search size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-blue-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Search Locations
+                    </div>
                 </button>
 
                 {/* Flight Deck Button */}
                 <button
                     onClick={() => setIsFlightDeckOpen(true)}
                     className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-cyan-600/20 to-sky-600/20 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] hover:scale-105 active:scale-95"
-                    title="Flight Deck - Quick Destinations"
                 >
                     <Plane size={24} className="group-hover:translate-y-[-2px] transition-transform" strokeWidth={2.5} />
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-cyan-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Flight Deck
+                    </div>
                 </button>
 
                 {/* Locate Me Button */}
                 <button
                     onClick={handleLocateMe}
                     className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-purple-600/20 to-purple-800/20 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] hover:scale-105 active:scale-95"
-                    title="Locate Me"
                 >
                     <div className="relative">
                         <Locate size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
                         {/* Green dot indicator */}
                         <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full shadow-[0_0_6px_rgba(74,222,128,0.9)] animate-pulse" />
+                    </div>
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-purple-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Locate Me
                     </div>
                 </button>
 
@@ -1309,24 +1332,39 @@ export default function MapView() {
                             ? 'bg-gradient-to-br from-orange-600/40 to-red-600/40 border-orange-500/50 text-white shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:shadow-[0_0_35px_rgba(249,115,22,0.8)]'
                             : 'bg-gradient-to-br from-orange-600/20 to-red-600/20 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.3)] hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]'
                     } hover:scale-105 active:scale-95 disabled:opacity-50`}
-                    title="Traffic Alerts"
                 >
                     {isWazeLoading ? (
                         <div className="h-6 w-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                         <AlertTriangle size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
                     )}
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-orange-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Traffic Alerts
+                    </div>
                 </button>
 
                 {/* Reset to Australia Button */}
                 <button
                     onClick={resetToAustralia}
                     className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] hover:scale-105 active:scale-95"
-                    title="Reset to Australia View"
                 >
                     <RotateCcw size={24} className="group-hover:rotate-180 transition-transform duration-500" strokeWidth={2.5} />
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-green-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Reset View
+                    </div>
                 </button>
             </div>
+
+            {/* TOAST NOTIFICATION */}
+            {toastMessage && (
+                <Toast
+                    message={toastMessage.message}
+                    type={toastMessage.type}
+                    onClose={() => setToastMessage(null)}
+                />
+            )}
 
             {/* FLIGHT DECK MODAL */}
             {isFlightDeckOpen && (

@@ -133,6 +133,14 @@ export class MapController {
         for (const [commandKey, binding] of Object.entries(bindings)) {
             if (!binding || binding.type !== 'button') continue;
 
+            // Skip axis commands - they're handled by processMapAnalog/processDroneAnalog
+            // (PAN_X, PAN_Y, ROTATE_X, PITCH_Y, MOVE_FORWARD, STRAFE_LEFT, LOOK_X, LOOK_Y)
+            if (commandKey.includes('PAN_') || commandKey.includes('ROTATE_') ||
+                commandKey.includes('PITCH_') || commandKey.includes('MOVE_') ||
+                commandKey.includes('STRAFE_') || commandKey.includes('LOOK_')) {
+                continue;
+            }
+
             // Skip zoom buttons - they're handled by processZoom with special tap-to-speed logic
             if (commandKey === 'MAP.ZOOM_IN' || commandKey === 'MAP.ZOOM_OUT') {
                 continue;

@@ -17,6 +17,55 @@ export const CITIES = {
     Canberra: [149.1304, -35.2809],
 } as const;
 
+// Flight Deck - Organized by State
+export const FLIGHT_DECK_DESTINATIONS = {
+    'New South Wales': {
+        'Sydney': [151.2093, -33.8688],
+        'Newcastle': [151.7789, -32.9267],
+        'Byron Bay': [153.6167, -28.6436],
+        'Ballina': [153.5619, -28.8660],
+        'Lismore': [153.2778, -28.8142],
+        'Tweed Heads': [153.5419, -28.1744],
+        'Murwillumbah': [153.3986, -28.3289],
+        'Nimbin': [153.2567, -28.5964],
+        'Wollongong': [150.8931, -34.4243],
+        'Coffs Harbour': [153.1136, -30.2963],
+        'Port Macquarie': [152.9083, -31.4333],
+    },
+    'Queensland': {
+        'Brisbane': [153.0251, -27.4698],
+        'Gold Coast': [153.4000, -28.0167],
+        'Burleigh Heads': [153.4508, -28.1028],
+        'Surfers Paradise': [153.4297, -28.0023],
+        'Coolangatta': [153.5364, -28.1681],
+        'Sunshine Coast': [153.0667, -26.6500],
+        'Noosa': [153.0917, -26.3978],
+        'Cairns': [145.7710, -16.9203],
+        'Townsville': [146.8169, -19.2564],
+    },
+    'Victoria': {
+        'Melbourne': [144.9631, -37.8136],
+        'Geelong': [144.3600, -38.1499],
+        'Ballarat': [143.8503, -37.5622],
+        'Bendigo': [144.2794, -36.7570],
+    },
+    'South Australia': {
+        'Adelaide': [138.6007, -34.9285],
+    },
+    'Western Australia': {
+        'Perth': [115.8605, -31.9505],
+    },
+    'Tasmania': {
+        'Hobart': [147.3272, -42.8821],
+    },
+    'Northern Territory': {
+        'Darwin': [130.8456, -12.4634],
+    },
+    'Australian Capital Territory': {
+        'Canberra': [149.1304, -35.2809],
+    },
+} as const;
+
 // Use our cached tile proxy for blazing fast loading
 // Tiles are cached in Redis server-side and browser-side for optimal performance
 const TILE_PROXY_BASE = process.env.NEXT_PUBLIC_TILE_PROXY_URL || '';

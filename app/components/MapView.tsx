@@ -22,7 +22,8 @@ import {
     RotateCcw,
     Target,
     Orbit,
-    Satellite
+    Satellite,
+    Plane
 } from 'lucide-react';
 
 import { MapController } from '../lib/gamepad/map-controller';
@@ -40,6 +41,7 @@ import { GamepadRouter } from '../map/input/GamepadRouter';
 import { TargetOverlay } from '../map/ui/TargetOverlay';
 import { ModeIndicatorLED } from '../map/ui/ModeIndicatorLED';
 import { cameraModeStore, CameraModeState } from '../map/state/cameraModeStore';
+import { FlightDeckModal } from './FlightDeckModal';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -80,6 +82,7 @@ export default function MapView() {
     const [debugLogs, setDebugLogs] = useState<Array<{timestamp: number; type: 'log' | 'error' | 'warn'; emoji: string; messages: any[]}>>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isFlightDeckOpen, setIsFlightDeckOpen] = useState(false);
 
     // Orbit & Satellite Mode state
     const [cameraModeState, setCameraModeState] = useState<CameraModeState>(cameraModeStore.getState());
@@ -253,8 +256,9 @@ export default function MapView() {
 
         // Command handlers for UI interactions
         const handleReportTraffic = () => {
-            console.log('[MapView] Report traffic triggered - Waze-like report workflow');
-            // TODO: Implement Waze-like report modal/workflow
+            console.log('[MapView] Report traffic triggered - triggering traffic scan');
+            // Trigger traffic scan (same as button/menu)
+            fetchWazeData();
         };
 
         const handleMenuNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
@@ -1035,38 +1039,6 @@ export default function MapView() {
                                     </div>
                                 </section>
 
-                                {/* FLIGHT DECK: Predefined Cities */}
-                                <section>
-                                    <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
-                                        FLIGHT DECK
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {Object.entries(CITIES).map(([name, coords]) => (
-                                            <button
-                                                key={name}
-                                                onClick={() => {
-                                                    flyToLocation(coords as [number, number], 12, `City Button: ${name}`);
-                                                    setIsSidebarOpen(false);
-                                                }}
-                                                className="h-9 bg-white/5 hover:bg-blue-600/20 border border-white/10 hover:border-blue-500/30 text-white/80 hover:text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
-                                            >
-                                                <div className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_4px_rgba(96,165,250,0.6)]" />
-                                                {name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset');
-                                            setIsSidebarOpen(false);
-                                        }}
-                                        className="w-full mt-2 h-10 bg-gradient-to-r from-red-600/20 to-orange-600/20 hover:from-red-600/30 hover:to-orange-600/30 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider shadow-[0_0_8px_rgba(239,68,68,0.2)]"
-                                    >
-                                        <Maximize size={13} /> GLOBAL VIEW RESET
-                                    </button>
-                                </section>
-
                                 {/* MAP STYLES: Selector */}
                                 <section>
                                     <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -1280,6 +1252,15 @@ export default function MapView() {
                     <Search size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
                 </button>
 
+                {/* Flight Deck Button */}
+                <button
+                    onClick={() => setIsFlightDeckOpen(true)}
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-cyan-600/20 to-sky-600/20 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] hover:scale-105 active:scale-95"
+                    title="Flight Deck - Quick Destinations"
+                >
+                    <Plane size={24} className="group-hover:translate-y-[-2px] transition-transform" strokeWidth={2.5} />
+                </button>
+
                 {/* Traffic Alerts Button */}
                 <button
                     onClick={fetchWazeData}
@@ -1307,6 +1288,16 @@ export default function MapView() {
                     <RotateCcw size={24} className="group-hover:rotate-180 transition-transform duration-500" strokeWidth={2.5} />
                 </button>
             </div>
+
+            {/* FLIGHT DECK MODAL */}
+            {isFlightDeckOpen && (
+                <FlightDeckModal
+                    onClose={() => setIsFlightDeckOpen(false)}
+                    onSelectDestination={(coords, name) => {
+                        flyToLocation(coords, 12, `Flight Deck: ${name}`);
+                    }}
+                />
+            )}
 
             {/* SPOTLIGHT SEARCH MODAL */}
             {isSearchOpen && (

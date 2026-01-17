@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ControllerProfile } from '@/app/lib/gamepad/types';
+import { ControllerProfileV2 } from '@/app/lib/gamepad/types-v2';
 import { getActiveGamepad, readBindingValue, applyDeadzone } from '@/app/lib/gamepad/gamepad-reader';
 import maplibregl from 'maplibre-gl';
 
 interface DebugModalProps {
-    profile: ControllerProfile;
+    profile: ControllerProfileV2;
     mapRef?: maplibregl.Map;
 }
 
@@ -42,11 +42,11 @@ export default function DebugModal({ profile, mapRef }: DebugModalProps) {
     useEffect(() => {
         const interval = setInterval(() => {
             const gp = getActiveGamepad();
-            if (gp && profile.bindings) {
-                const rawPanX = readBindingValue(gp, profile.bindings.pan_x);
-                const rawPanY = readBindingValue(gp, profile.bindings.pan_y);
-                const rawRotate = readBindingValue(gp, profile.bindings.rotate_x);
-                const rawPitch = readBindingValue(gp, profile.bindings.pitch_y);
+            if (gp && profile.bindings && profile.bindings.map) {
+                const rawPanX = readBindingValue(gp, profile.bindings.map['MAP.PAN_X']);
+                const rawPanY = readBindingValue(gp, profile.bindings.map['MAP.PAN_Y']);
+                const rawRotate = readBindingValue(gp, profile.bindings.map['MAP.ROTATE_X']);
+                const rawPitch = readBindingValue(gp, profile.bindings.map['MAP.PITCH_Y']);
 
                 setGamepadState({
                     rawPanX,

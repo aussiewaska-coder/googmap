@@ -67,50 +67,66 @@ export default function BindModal({ action, onCapture, onCancel }: BindModalProp
     }, [listening, onCapture]);
 
     return (
-        <div className="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-zinc-900 border-2 border-blue-500 rounded-3xl shadow-2xl p-8 max-w-md w-full">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <Radio className="text-blue-500 animate-pulse" size={24} />
-                        <div>
-                            <div className="text-white font-bold text-lg">Listening...</div>
-                            <div className="text-white/60 text-xs">
-                                Binding: <span className="text-blue-400">{actionDef?.label}</span>
-                            </div>
+        <div className="fixed inset-0 z-[10001] bg-black/90 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-200">
+            <div className="bg-gradient-to-br from-zinc-900 to-black border-4 border-blue-500 rounded-3xl shadow-2xl shadow-blue-500/50 p-8 max-w-lg w-full animate-in zoom-in-95 duration-300">
+                {/* HUGE Listening Indicator */}
+                <div className="mb-8 text-center">
+                    <div className="relative inline-block">
+                        <Radio className="text-blue-500 animate-pulse" size={64} />
+                        <div className="absolute inset-0 animate-ping">
+                            <Radio className="text-blue-500/50" size={64} />
                         </div>
                     </div>
-                    <button
-                        onClick={onCancel}
-                        className="h-8 w-8 bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white rounded-lg transition-all flex items-center justify-center"
-                    >
-                        <X size={16} />
-                    </button>
-                </div>
-
-                {/* Preview Box */}
-                <div className="bg-black/50 border border-blue-500/30 rounded-2xl p-6 mb-6">
-                    <div className="text-center">
-                        <div className="text-blue-400 text-sm font-mono mb-2">Live Preview</div>
-                        <div className="text-white text-lg font-bold">{preview}</div>
+                    <div className="mt-4">
+                        <div className="text-white font-black text-3xl uppercase tracking-wider animate-pulse">
+                            🎮 LISTENING...
+                        </div>
+                        <div className="text-blue-400 text-sm mt-2 font-bold">
+                            Binding: {actionDef?.label}
+                        </div>
+                        <div className="text-white/40 text-xs mt-1">
+                            {actionDef?.description}
+                        </div>
                     </div>
                 </div>
 
-                {/* Instructions */}
-                <div className="text-white/40 text-xs text-center space-y-2">
-                    <p>Move a stick or press a button to bind it to this action.</p>
-                    <p className="text-white/60 font-bold">
-                        Expected: {actionDef?.type === 'axis' ? 'Analog Stick' : 'Button Press'}
-                    </p>
+                {/* MASSIVE Preview Box with Animation */}
+                <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border-2 border-blue-500/50 rounded-2xl p-8 mb-6 shadow-inner">
+                    <div className="text-center">
+                        <div className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-3">
+                            ⚡ LIVE DETECTION ⚡
+                        </div>
+                        <div className="text-white text-2xl font-black mb-2 min-h-[32px] animate-pulse">
+                            {preview}
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden mt-4">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse w-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Clear Instructions */}
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
+                    <div className="text-yellow-300 text-sm font-bold text-center space-y-2">
+                        <p className="text-xl">👆 {actionDef?.type === 'axis' ? 'MOVE A STICK' : 'PRESS A BUTTON'}</p>
+                        <p className="text-xs text-yellow-200/80">
+                            {actionDef?.type === 'axis'
+                                ? 'Move any analog stick to capture axis input'
+                                : 'Press any button on your controller to bind it'
+                            }
+                        </p>
+                    </div>
                 </div>
 
                 {/* Cancel Button */}
-                <button
-                    onClick={onCancel}
-                    className="w-full mt-6 h-10 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold rounded-lg transition-all"
-                >
-                    Cancel
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 h-12 bg-red-600/20 hover:bg-red-600/30 border-2 border-red-500/50 text-red-300 text-sm font-black rounded-xl transition-all uppercase tracking-wider"
+                    >
+                        ✕ Cancel
+                    </button>
+                </div>
             </div>
         </div>
     );

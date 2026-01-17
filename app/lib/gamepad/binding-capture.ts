@@ -1,4 +1,4 @@
-import { Binding } from './types';
+import { Binding } from './types-v2';
 
 export interface GamepadSnapshot {
     buttons: readonly GamepadButton[];

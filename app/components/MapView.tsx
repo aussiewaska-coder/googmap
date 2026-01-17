@@ -237,6 +237,8 @@ export default function MapView() {
         const commandContext: CommandContext = {
             map: map.current,
             ui: {
+                openSettings: () => setIsSettingsOpen(true),
+                closeSettings: () => setIsSettingsOpen(false),
                 toggleSettings: () => setIsSettingsOpen(prev => !prev),
                 isSettingsOpen: () => isSettingsOpen,
                 menuNavigate: handleMenuNavigate,

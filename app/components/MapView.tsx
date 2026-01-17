@@ -784,6 +784,25 @@ export default function MapView() {
         cameraModeStore.cancelAll();
     };
 
+    // Reset to Australia with proper orientation
+    const resetToAustralia = () => {
+        if (!map.current) return;
+
+        console.log('🌏 [MapView] Resetting to Australia view');
+
+        map.current.flyTo({
+            center: [AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat],
+            zoom: AUSTRALIA_CENTER.zoom,
+            pitch: AUSTRALIA_CENTER.pitch,
+            bearing: AUSTRALIA_CENTER.bearing,
+            duration: 1800,
+            curve: 1.4,
+            speed: 0.8,
+            easing: (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+            essential: true,
+        });
+    };
+
     // Intercept console logs for debug panel
     useEffect(() => {
         const originalLog = console.log;
@@ -1255,50 +1274,37 @@ export default function MapView() {
                 {/* Search Button */}
                 <button
                     onClick={() => setIsSearchOpen(true)}
-                    className="group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95"
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95"
                     title="Search Locations"
                 >
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <Search size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
-                        <span className="hidden md:inline">SEARCH</span>
-                    </div>
+                    <Search size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
                 </button>
 
-                {/* Traffic Scan Button */}
+                {/* Traffic Alerts Button */}
                 <button
                     onClick={fetchWazeData}
                     disabled={isWazeLoading}
-                    className={`group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 ${
+                    className={`group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 ${
                         isWazeEnabled
                             ? 'bg-gradient-to-br from-orange-600/40 to-red-600/40 border-orange-500/50 text-white shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:shadow-[0_0_35px_rgba(249,115,22,0.8)]'
                             : 'bg-gradient-to-br from-orange-600/20 to-red-600/20 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.3)] hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]'
                     } hover:scale-105 active:scale-95 disabled:opacity-50`}
-                    title="Scan Traffic in Viewport"
+                    title="Traffic Alerts"
                 >
-                    <div className="flex items-center gap-2 md:gap-3">
-                        {isWazeLoading ? (
-                            <div className="h-5 w-5 md:h-6 md:w-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <AlertTriangle size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
-                        )}
-                        <span className="hidden md:inline">TRAFFIC SCAN</span>
-                        <span className="md:hidden">SCAN</span>
-                    </div>
+                    {isWazeLoading ? (
+                        <div className="h-6 w-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                        <AlertTriangle size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
+                    )}
                 </button>
 
                 {/* Reset to Australia Button */}
                 <button
-                    onClick={() => {
-                        flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Reset Button');
-                    }}
-                    className="group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] hover:scale-105 active:scale-95"
+                    onClick={resetToAustralia}
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] hover:scale-105 active:scale-95"
                     title="Reset to Australia View"
                 >
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <RotateCcw size={24} className="group-hover:rotate-180 transition-transform duration-500" strokeWidth={2.5} />
-                        <span className="hidden md:inline">RESET VIEW</span>
-                        <span className="md:hidden">RESET</span>
-                    </div>
+                    <RotateCcw size={24} className="group-hover:rotate-180 transition-transform duration-500" strokeWidth={2.5} />
                 </button>
             </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
@@ -48,6 +48,9 @@ export default function MapView() {
     const [wazeData, setWazeData] = useState<any>(null);
     const [isWazeLoading, setIsWazeLoading] = useState(false);
     const [isWazeEnabled, setIsWazeEnabled] = useState(false);
+    const [timeHorizon, setTimeHorizon] = useState(1); // in hours
+    const [gamepadConnected, setGamepadConnected] = useState(false);
+    const [gamepadName, setGamepadName] = useState<string>('');
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -141,6 +144,118 @@ export default function MapView() {
         return () => {
             m.remove();
             map.current = null;
+        };
+    }, []);
+
+    // Gamepad Controls
+    useEffect(() => {
+        let gamepadIndex: number | null = null;
+        let animationFrameId: number;
+        let zoomDiff = 0;
+        let bearingDiff = 0;
+        let pitchDiff = 0;
+
+        const handleGamepadConnected = (e: GamepadEvent) => {
+            console.log('Gamepad connected:', e.gamepad.id);
+            setGamepadConnected(true);
+            setGamepadName(e.gamepad.id);
+            gamepadIndex = e.gamepad.index;
+        };
+
+        const handleGamepadDisconnected = () => {
+            console.log('Gamepad disconnected');
+            setGamepadConnected(false);
+            setGamepadName('');
+            gamepadIndex = null;
+        };
+
+        const scaleClamp = (value: number, scale: number, threshold: number) => {
+            return Math.abs(value) < threshold ? 0 : value * scale;
+        };
+
+        const pollGamepad = () => {
+            if (!map.current) {
+                animationFrameId = requestAnimationFrame(pollGamepad);
+                return;
+            }
+
+            if (gamepadIndex !== null) {
+                const gamepads = navigator.getGamepads();
+                const gamepad = gamepads[gamepadIndex];
+
+                if (gamepad) {
+                    // Left stick: Pan (axes 0 and 1)
+                    const leftX = gamepad.axes[0] || 0;
+                    const leftY = gamepad.axes[1] || 0;
+
+                    // Right stick (axes 2 and 3)
+                    const rightX = gamepad.axes[2] || 0;
+                    const rightY = gamepad.axes[3] || 0;
+
+                    // Pan speed scales with zoom
+                    const currentZoom = map.current.getZoom();
+                    const panScale = (currentZoom / 30) * 100;
+
+                    const panX = scaleClamp(leftX, panScale, 0.15);
+                    const panY = scaleClamp(leftY, panScale, 0.15);
+
+                    if (panX !== 0 || panY !== 0) {
+                        map.current.panBy([panX, panY], { animate: false });
+                    }
+
+                    // Zoom (right stick Y)
+                    zoomDiff += scaleClamp(-rightY, 0.05, 0.15);
+                    if (Math.abs(zoomDiff) > 0.1) {
+                        map.current.setZoom(currentZoom + zoomDiff);
+                        zoomDiff = 0;
+                    }
+
+                    // Bearing (right stick X)
+                    bearingDiff += scaleClamp(rightX, 2, 0.15);
+                    if (Math.abs(bearingDiff) > 1) {
+                        map.current.setBearing(map.current.getBearing() + bearingDiff);
+                        bearingDiff = 0;
+                    }
+
+                    // Pitch (L2/R2 triggers)
+                    const l2 = gamepad.buttons[6]?.pressed ? 1 : 0;
+                    const r2 = gamepad.buttons[7]?.pressed ? 1 : 0;
+
+                    if (l2 || r2) {
+                        pitchDiff += (r2 - l2) * 1.5;
+                        if (Math.abs(pitchDiff) > 1) {
+                            const currentPitch = map.current.getPitch();
+                            const newPitch = Math.max(0, Math.min(60, currentPitch + pitchDiff));
+                            map.current.setPitch(newPitch);
+                            pitchDiff = 0;
+                        }
+                    }
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(pollGamepad);
+        };
+
+        window.addEventListener('gamepadconnected', handleGamepadConnected);
+        window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
+
+        // Check for already connected gamepads
+        const gamepads = navigator.getGamepads();
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) {
+                handleGamepadConnected({ gamepad: gamepads[i] } as GamepadEvent);
+                break;
+            }
+        }
+
+        pollGamepad();
+
+        return () => {
+            window.removeEventListener('gamepadconnected', handleGamepadConnected);
+            window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected);
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
         };
     }, []);
 
@@ -368,6 +483,27 @@ export default function MapView() {
         }
     };
 
+    const fetchDatabaseAlerts = useCallback(async () => {
+        setIsWazeLoading(true);
+        try {
+            const res = await fetch(`/api/alerts?hours=${timeHorizon}`);
+            if (!res.ok) throw new Error('API error');
+            const data = await res.json();
+            setWazeData(data);
+        } catch (err) {
+            console.error('[Database Alerts] Fetch Error', err);
+        } finally {
+            setIsWazeLoading(false);
+        }
+    }, [timeHorizon]);
+
+    // Fetch database alerts when enabled or time horizon changes
+    useEffect(() => {
+        if (isWazeEnabled) {
+            fetchDatabaseAlerts();
+        }
+    }, [isWazeEnabled, fetchDatabaseAlerts]);
+
     const fetchWazeData = async () => {
         if (!map.current) return;
         setIsWazeLoading(true);
@@ -545,31 +681,99 @@ export default function MapView() {
 
                                 {isWazeEnabled && (
                                     <div className="space-y-3 pt-2 border-t border-white/5">
-                                        <button
-                                            onClick={fetchWazeData}
-                                            disabled={isWazeLoading}
-                                            className="w-full h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
-                                        >
-                                            {isWazeLoading ? (
-                                                <>
-                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                    Scanning Region...
-                                                </>
-                                            ) : (
-                                                <>Scan Current Viewport</>
-                                            )}
-                                        </button>
+                                        {/* Time Horizon Selector */}
+                                        <div>
+                                            <div className="text-white/60 text-[10px] font-bold uppercase mb-2">Time Horizon</div>
+                                            <div className="grid grid-cols-3 gap-1.5">
+                                                {[
+                                                    { label: '15m', value: 0.25 },
+                                                    { label: '30m', value: 0.5 },
+                                                    { label: '1h', value: 1 },
+                                                    { label: '2h', value: 2 },
+                                                    { label: '6h', value: 6 },
+                                                    { label: '12h', value: 12 },
+                                                    { label: '24h', value: 24 },
+                                                    { label: '48h', value: 48 },
+                                                    { label: '72h', value: 72 },
+                                                ].map((option) => (
+                                                    <button
+                                                        key={option.value}
+                                                        onClick={() => setTimeHorizon(option.value)}
+                                                        className={`h-8 text-[10px] font-bold rounded-lg transition-all ${
+                                                            timeHorizon === option.value
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
+                                        {/* Step Controls */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    const options = [0.25, 0.5, 1, 2, 6, 12, 24, 48, 72];
+                                                    const currentIndex = options.indexOf(timeHorizon);
+                                                    if (currentIndex > 0) {
+                                                        setTimeHorizon(options[currentIndex - 1]);
+                                                    }
+                                                }}
+                                                disabled={timeHorizon === 0.25}
+                                                className="flex-1 h-8 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white text-[10px] font-bold rounded-lg transition-all"
+                                            >
+                                                ← Down
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const options = [0.25, 0.5, 1, 2, 6, 12, 24, 48, 72];
+                                                    const currentIndex = options.indexOf(timeHorizon);
+                                                    if (currentIndex < options.length - 1) {
+                                                        setTimeHorizon(options[currentIndex + 1]);
+                                                    }
+                                                }}
+                                                disabled={timeHorizon === 72}
+                                                className="flex-1 h-8 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white text-[10px] font-bold rounded-lg transition-all"
+                                            >
+                                                Up →
+                                            </button>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={fetchDatabaseAlerts}
+                                                disabled={isWazeLoading}
+                                                className="flex-1 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
+                                            >
+                                                {isWazeLoading ? (
+                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>Refresh</>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={fetchWazeData}
+                                                disabled={isWazeLoading}
+                                                className="flex-1 h-10 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
+                                            >
+                                                {isWazeLoading ? (
+                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>Scan</>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Stats Display */}
                                         {wazeData && (
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5 text-center">
-                                                    <div className="text-white/40 text-[8px] uppercase font-bold mb-1">Alerts</div>
-                                                    <div className="text-white font-black text-sm">{wazeData.counts.alerts}</div>
+                                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 text-center">
+                                                <div className="text-white/40 text-[8px] uppercase font-bold mb-1">
+                                                    Alerts ({timeHorizon >= 1 ? `${timeHorizon}h` : `${timeHorizon * 60}m`})
                                                 </div>
-                                                <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5 text-center">
-                                                    <div className="text-white/40 text-[8px] uppercase font-bold mb-1">Jams</div>
-                                                    <div className="text-white font-black text-sm">{wazeData.counts.jams}</div>
-                                                </div>
+                                                <div className="text-white font-black text-xl">{wazeData.count ?? 0}</div>
                                             </div>
                                         )}
                                     </div>
@@ -628,6 +832,14 @@ export default function MapView() {
                     <Locate size={20} className="group-hover:scale-110 transition-transform" />
                 </button>
             </div>
+
+            {/* GAMEPAD STATUS */}
+            {gamepadConnected && (
+                <div className="fixed top-6 right-6 z-[9000] bg-black/90 backdrop-blur-lg border border-green-500/30 rounded-xl px-4 py-2 shadow-2xl flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-green-400 text-xs font-bold">🎮 {gamepadName.split('(')[0].trim()}</span>
+                </div>
+            )}
 
             {/* CAMERA DEBUG PANEL */}
             <div className="fixed top-20 right-6 z-[9000] bg-black/90 backdrop-blur-lg border border-white/20 rounded-xl p-4 shadow-2xl font-mono text-xs">

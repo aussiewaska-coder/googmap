@@ -164,7 +164,7 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                         </div>
 
                         {/* Smoothing */}
-                        <div className="mb-4 pb-4 border-b border-white/5">
+                        <div className="mb-4">
                             <div className="flex justify-between items-center mb-2">
                                 <div>
                                     <div className="text-white text-xs font-bold">Smoothing (Inertia)</div>
@@ -183,90 +183,6 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                                 onChange={(e) => updateSetting('smoothing', parseFloat(e.target.value))}
                                 className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50"
                             />
-                        </div>
-
-                        {/* Axis Inversion */}
-                        <div className="text-white/80 text-xs font-bold mb-3">Axis Inversion</div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Left Stick */}
-                            <div className="bg-gradient-to-br from-blue-600/5 to-transparent rounded-lg p-3 border border-blue-500/10">
-                                <div className="text-blue-400 text-[10px] font-bold mb-3 text-center uppercase tracking-wider">Left Stick</div>
-                                <div className="space-y-2">
-                                    {/* Invert X */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="text-white/60 text-[10px] font-mono">←→</div>
-                                            <div className="text-white/70 text-[10px] font-bold">X</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.leftStickInvertX}
-                                                onChange={(e) => updateSetting('leftStickInvertX', e.target.checked)}
-                                            />
-                                            <div className="w-8 h-[18px] bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[14px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[14px] after:w-[14px] after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-blue-600 peer-checked:shadow-lg peer-checked:shadow-blue-500/50"></div>
-                                        </label>
-                                    </div>
-
-                                    {/* Invert Y */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="text-white/60 text-[10px] font-mono">↑↓</div>
-                                            <div className="text-white/70 text-[10px] font-bold">Y</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.leftStickInvertY}
-                                                onChange={(e) => updateSetting('leftStickInvertY', e.target.checked)}
-                                            />
-                                            <div className="w-8 h-[18px] bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[14px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[14px] after:w-[14px] after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-blue-600 peer-checked:shadow-lg peer-checked:shadow-blue-500/50"></div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Right Stick */}
-                            <div className="bg-gradient-to-br from-cyan-600/5 to-transparent rounded-lg p-3 border border-cyan-500/10">
-                                <div className="text-cyan-400 text-[10px] font-bold mb-3 text-center uppercase tracking-wider">Right Stick</div>
-                                <div className="space-y-2">
-                                    {/* Invert X */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="text-white/60 text-[10px] font-mono">←→</div>
-                                            <div className="text-white/70 text-[10px] font-bold">X</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.rightStickInvertX}
-                                                onChange={(e) => updateSetting('rightStickInvertX', e.target.checked)}
-                                            />
-                                            <div className="w-8 h-[18px] bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[14px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[14px] after:w-[14px] after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-blue-600 peer-checked:shadow-lg peer-checked:shadow-blue-500/50"></div>
-                                        </label>
-                                    </div>
-
-                                    {/* Invert Y */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="text-white/60 text-[10px] font-mono">↑↓</div>
-                                            <div className="text-white/70 text-[10px] font-bold">Y</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.rightStickInvertY}
-                                                onChange={(e) => updateSetting('rightStickInvertY', e.target.checked)}
-                                            />
-                                            <div className="w-8 h-[18px] bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[14px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-[14px] after:w-[14px] after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-blue-600 peer-checked:shadow-lg peer-checked:shadow-blue-500/50"></div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

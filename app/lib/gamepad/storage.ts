@@ -11,28 +11,17 @@ export function loadSessionProfile(): ControllerProfile | null {
 
         const profile = JSON.parse(raw) as ControllerProfile;
 
-        // Migrate old profiles from invertX/invertY strings to boolean flags
+        // Migrate old profiles and add missing settings
         if (profile.settings) {
             const s = profile.settings as any;
 
-            // Check if using old schema
-            if (s.invertX !== undefined || s.invertY !== undefined) {
-                // Migrate from old 'none'|'left'|'right'|'both' to new booleans
-                s.leftStickInvertX = s.invertX === 'left' || s.invertX === 'both';
-                s.leftStickInvertY = s.invertY === 'left' || s.invertY === 'both';
-                s.rightStickInvertX = s.invertX === 'right' || s.invertX === 'both';
-                s.rightStickInvertY = s.invertY === 'right' || s.invertY === 'both';
-
-                // Remove old properties
-                delete s.invertX;
-                delete s.invertY;
-            }
-
-            // Set defaults if missing (old profiles)
-            if (s.leftStickInvertX === undefined) s.leftStickInvertX = false;
-            if (s.leftStickInvertY === undefined) s.leftStickInvertY = true; // Default inverted
-            if (s.rightStickInvertX === undefined) s.rightStickInvertX = false;
-            if (s.rightStickInvertY === undefined) s.rightStickInvertY = false;
+            // Remove old invert properties if they exist
+            delete s.invertX;
+            delete s.invertY;
+            delete s.leftStickInvertX;
+            delete s.leftStickInvertY;
+            delete s.rightStickInvertX;
+            delete s.rightStickInvertY;
 
             // Add flight mode settings defaults if missing
             if (s.flightMode === undefined) s.flightMode = DEFAULT_PROFILE.settings.flightMode;

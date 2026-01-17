@@ -71,23 +71,11 @@ export class MapController {
     private processGamepad(gp: Gamepad, dt: number) {
         const { settings, bindings } = this.profile;
 
-        // Read raw values
-        let panXRaw = readBindingValue(gp, bindings.pan_x);
-        let panYRaw = readBindingValue(gp, bindings.pan_y);
-        let rotRaw = readBindingValue(gp, bindings.rotate_x);
-        let pitRaw = readBindingValue(gp, bindings.pitch_y);
-
-        // Apply individual stick inversions
-        if (settings.leftStickInvertX) rotRaw = -rotRaw;
-        if (settings.leftStickInvertY) pitRaw = -pitRaw;
-        if (settings.rightStickInvertX) panXRaw = -panXRaw;
-        if (settings.rightStickInvertY) panYRaw = -panYRaw;
-
-        // Apply deadzone + sensitivity with improved curve
-        const panX = applyCurve(applyDeadzone(panXRaw, settings.deadzone), settings.sensitivity);
-        const panY = applyCurve(applyDeadzone(panYRaw, settings.deadzone), settings.sensitivity);
-        const rot = applyCurve(applyDeadzone(rotRaw, settings.deadzone), settings.sensitivity);
-        const pit = applyCurve(applyDeadzone(pitRaw, settings.deadzone), settings.sensitivity);
+        // Read raw values and apply deadzone + sensitivity
+        const panX = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pan_x), settings.deadzone), settings.sensitivity);
+        const panY = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pan_y), settings.deadzone), settings.sensitivity);
+        const rot = applyCurve(applyDeadzone(readBindingValue(gp, bindings.rotate_x), settings.deadzone), settings.sensitivity);
+        const pit = applyCurve(applyDeadzone(readBindingValue(gp, bindings.pitch_y), settings.deadzone), settings.sensitivity);
 
         // Apply smoothing/inertia to velocities
         this.velocities.panX = this.smoothToward(this.velocities.panX, panX * settings.panSpeedPxPerSec, settings.smoothing);

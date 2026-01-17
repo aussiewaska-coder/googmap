@@ -16,10 +16,6 @@ export interface ControllerProfile {
         deadzone: number;           // 0..0.35
         sensitivity: number;        // response curve (>1 more aggressive)
         smoothing: number;          // 0..1, inertia factor
-        leftStickInvertX: boolean;  // Left stick X (rotate)
-        leftStickInvertY: boolean;  // Left stick Y (pitch)
-        rightStickInvertX: boolean; // Right stick X (pan horizontal)
-        rightStickInvertY: boolean; // Right stick Y (pan vertical)
 
         // continuous camera speeds (per second)
         panSpeedPxPerSec: number;

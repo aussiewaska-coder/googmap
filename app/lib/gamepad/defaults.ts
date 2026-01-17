@@ -9,10 +9,6 @@ export const DEFAULT_PROFILE: ControllerProfile = {
         deadzone: 0.12,
         sensitivity: 1.25,
         smoothing: 0.18,
-        leftStickInvertX: false,
-        leftStickInvertY: true,   // Flight controls - inverted by default
-        rightStickInvertX: false,
-        rightStickInvertY: false,
 
         // continuous camera speeds (per second) - defaults from joyflight preset
         panSpeedPxPerSec: 650,

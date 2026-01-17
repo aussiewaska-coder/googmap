@@ -69,15 +69,6 @@ export class MapController {
     }
 
     /**
-     * Get the pivot point for pitch rotation (70% down the viewport, closer to camera).
-     */
-    private getPitchPivotPoint(): maplibregl.LngLat {
-        const container = this.map.getContainer();
-        const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
-        return this.map.unproject([centerPoint.x, centerPoint.y]);
-    }
-
-    /**
      * Cycle zoom speed through progression: 0 → 1 → 2 → 4 → 8 → 0
      */
     private cycleZoomSpeed(current: number): number {
@@ -126,6 +117,7 @@ export class MapController {
         }
 
         // Pitch (using smoothed velocity, instant application)
+        // No pivot point - rotates camera in place for first-person feel
         if (this.velocities.pitch) {
             this.accumulators.pitch += this.velocities.pitch * dt;
             if (Math.abs(this.accumulators.pitch) > 1) {
@@ -134,8 +126,7 @@ export class MapController {
 
                 this.map.easeTo({
                     pitch: newPitch,
-                    duration: 0,
-                    around: this.getPitchPivotPoint()
+                    duration: 0
                 });
                 this.accumulators.pitch = 0;
             }
@@ -183,8 +174,7 @@ export class MapController {
 
                 this.map.easeTo({
                     pitch: targetPitch,
-                    duration: 300,
-                    around: this.getPitchPivotPoint()
+                    duration: 300
                 });
             }
         }

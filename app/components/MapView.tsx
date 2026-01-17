@@ -23,7 +23,12 @@ import {
     Target,
     Orbit,
     Satellite,
-    Plane
+    Plane,
+    Cloud,
+    ShieldAlert,
+    Car,
+    Construction,
+    Camera
 } from 'lucide-react';
 
 import { MapController } from '../lib/gamepad/map-controller';
@@ -43,6 +48,7 @@ import { ModeIndicatorLED } from '../map/ui/ModeIndicatorLED';
 import { cameraModeStore, CameraModeState } from '../map/state/cameraModeStore';
 import { FlightDeckModal } from './FlightDeckModal';
 import { Toast } from './Toast';
+import { WeatherModal } from './WeatherModal';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -84,7 +90,15 @@ export default function MapView() {
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isFlightDeckOpen, setIsFlightDeckOpen] = useState(false);
+    const [isWeatherOpen, setIsWeatherOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState<{ message: string; type: 'orbit' | 'satellite' } | null>(null);
+    const [reportFilters, setReportFilters] = useState({
+        police: true,
+        accident: true,
+        hazard: true,
+        camera: true,
+        jam: true
+    });
 
     // Orbit & Satellite Mode state
     const [cameraModeState, setCameraModeState] = useState<CameraModeState>(cameraModeStore.getState());
@@ -570,6 +584,8 @@ export default function MapView() {
         let duration = 1800;
         let curve = 1.4;
         let speed = 0.8;
+        let pitch = 0;
+        let bearing = 0;
 
         if (isCinematic) {
             // Long distance = more dramatic curve and longer duration
@@ -586,11 +602,17 @@ export default function MapView() {
                 curve = 1.5;
                 speed = 0.75;
             }
+
+            // Arrive at tilted angle for cinematic effect
+            pitch = 45;
+            bearing = map.current.getBearing();
         }
 
         const flyOptions = {
             center,
             zoom,
+            pitch,
+            bearing,
             duration,
             curve,
             speed,
@@ -608,10 +630,31 @@ export default function MapView() {
         console.log('🛫 Speed:', flyOptions.speed);
         console.log('🛫 Curve:', flyOptions.curve);
         console.log('🛫 Distance:', distance.toFixed(2), '°');
+        console.log('🛫 Pitch:', pitch, '°');
 
         const onMoveEnd = () => {
             console.log('✅ [FlyTo] Flight completed!');
             console.log('🛫 Final center:', map.current?.getCenter());
+
+            // Start slight orbit for cinematic arrivals
+            if (isCinematic && cameraControllerRef.current) {
+                console.log('🎬 [FlyTo] Starting cinematic orbit...');
+                const targetLngLat = typeof center[0] === 'number' && typeof center[1] === 'number'
+                    ? { lng: center[0], lat: center[1] }
+                    : center;
+
+                cameraControllerRef.current.getOrbitController().start({
+                    target: targetLngLat,
+                    zoom: zoom,
+                    pitch: 45,
+                    speedDegPerSec: 8, // Slow gentle rotation
+                    useEaseTo: true,
+                    minZoom: zoom - 1,
+                    maxZoom: zoom + 1,
+                    minPitch: 40,
+                    maxPitch: 50,
+                });
+            }
             console.log('🛫 Final zoom:', map.current?.getZoom());
             console.log('🛫 ===== FLY TO COMPLETE =====');
             console.log('');
@@ -1045,16 +1088,6 @@ export default function MapView() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
-                                            onClick={cycleMapStyle}
-                                            className="h-12 bg-gradient-to-br from-blue-600/20 to-blue-800/20 hover:from-blue-600/30 hover:to-blue-800/30 border border-blue-500/30 rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(37,99,235,0.2)] hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
-                                        >
-                                            <MapIcon size={16} className="text-blue-400" />
-                                            <div className="flex flex-col items-start">
-                                                <div className="text-[9px] text-blue-400">CYCLE MAP</div>
-                                                <div className="text-[10px] text-white/80">{MAP_STYLES.find(s => s.id === currentStyle)?.emoji} {MAP_STYLES.find(s => s.id === currentStyle)?.name}</div>
-                                            </div>
-                                        </button>
-                                        <button
                                             onClick={() => setTerrainEnabled(!terrainEnabled)}
                                             className={`h-12 bg-gradient-to-br ${terrainEnabled ? 'from-green-600/20 to-green-800/20' : 'from-white/5 to-white/10'} border ${terrainEnabled ? 'border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : 'border-white/10'} rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-105`}
                                         >
@@ -1067,16 +1100,16 @@ export default function MapView() {
                                         <button
                                             onClick={fetchWazeData}
                                             disabled={isWazeLoading}
-                                            className={`h-12 bg-gradient-to-br ${isWazeEnabled ? 'from-orange-600/20 to-orange-800/20' : 'from-white/5 to-white/10'} border ${isWazeEnabled ? 'border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'border-white/10'} rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-105`}
+                                            className={`h-12 bg-gradient-to-br ${isWazeEnabled ? 'from-blue-600/30 to-red-600/30' : 'from-white/5 to-white/10'} border ${isWazeEnabled ? 'border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'border-white/10'} rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-105`}
                                         >
                                             {isWazeLoading ? (
-                                                <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                                <div className="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                                             ) : (
                                                 <>
-                                                    <AlertTriangle size={16} className={isWazeEnabled ? 'text-orange-400' : 'text-white/40'} />
+                                                    <ShieldAlert size={16} className={isWazeEnabled ? 'text-blue-400' : 'text-white/40'} />
                                                     <div className="flex flex-col items-start">
-                                                        <div className={`text-[9px] ${isWazeEnabled ? 'text-orange-400' : 'text-white/40'}`}>TRAFFIC</div>
-                                                        <div className="text-[10px]">{isWazeEnabled ? 'SCAN' : 'OFF'}</div>
+                                                        <div className={`text-[9px] ${isWazeEnabled ? 'text-blue-400' : 'text-white/40'}`}>POLICE</div>
+                                                        <div className="text-[10px]">{isWazeEnabled ? 'ACTIVE' : 'OFF'}</div>
                                                     </div>
                                                 </>
                                             )}
@@ -1170,40 +1203,108 @@ export default function MapView() {
                                     </section>
                                 )}
 
-                                {/* TRAFFIC ALERTS - Compact */}
+                                {/* POLICE REPORTS - Compact */}
                                 {isWazeEnabled && (
                                     <section>
-                                        <div className="text-orange-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse shadow-[0_0_8px_rgba(251,146,60,0.9)]" />
-                                            TRAFFIC ALERTS
+                                        <div className="text-blue-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.9)]" />
+                                            POLICE REPORTS
                                         </div>
-                                        <div className="bg-white/5 border border-orange-500/20 rounded-lg p-3 space-y-3">
-                                            <div className="grid grid-cols-3 gap-1">
-                                                {[
-                                                    { label: '15m', value: 0.25 },
-                                                    { label: '1h', value: 1 },
-                                                    { label: '6h', value: 6 },
-                                                    { label: '12h', value: 12 },
-                                                    { label: '24h', value: 24 },
-                                                    { label: '48h', value: 48 },
-                                                ].map((option) => (
+                                        <div className="bg-white/5 border border-blue-500/20 rounded-lg p-3 space-y-3">
+                                            {/* Report Type Filters */}
+                                            <div className="space-y-2">
+                                                <div className="text-white/60 text-[9px] uppercase font-bold tracking-wider mb-2">Filter By Type</div>
+                                                <div className="grid grid-cols-2 gap-2">
                                                     <button
-                                                        key={option.value}
-                                                        onClick={() => setTimeHorizon(option.value)}
-                                                        className={`h-7 text-[9px] font-bold rounded transition-all ${
-                                                            timeHorizon === option.value
-                                                                ? 'bg-orange-600 text-white shadow-[0_0_8px_rgba(249,115,22,0.4)]'
-                                                                : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                                        onClick={() => setReportFilters(prev => ({ ...prev, police: !prev.police }))}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                                                            reportFilters.police
+                                                                ? 'bg-blue-600/30 border border-blue-500/50 text-white shadow-[0_0_6px_rgba(59,130,246,0.3)]'
+                                                                : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'
                                                         }`}
                                                     >
-                                                        {option.label}
+                                                        <ShieldAlert size={14} />
+                                                        <span>Police</span>
                                                     </button>
-                                                ))}
+                                                    <button
+                                                        onClick={() => setReportFilters(prev => ({ ...prev, accident: !prev.accident }))}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                                                            reportFilters.accident
+                                                                ? 'bg-red-600/30 border border-red-500/50 text-white shadow-[0_0_6px_rgba(220,38,38,0.3)]'
+                                                                : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        <Car size={14} />
+                                                        <span>Accident</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setReportFilters(prev => ({ ...prev, hazard: !prev.hazard }))}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                                                            reportFilters.hazard
+                                                                ? 'bg-yellow-600/30 border border-yellow-500/50 text-white shadow-[0_0_6px_rgba(234,179,8,0.3)]'
+                                                                : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        <Construction size={14} />
+                                                        <span>Hazard</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setReportFilters(prev => ({ ...prev, camera: !prev.camera }))}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                                                            reportFilters.camera
+                                                                ? 'bg-purple-600/30 border border-purple-500/50 text-white shadow-[0_0_6px_rgba(147,51,234,0.3)]'
+                                                                : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        <Camera size={14} />
+                                                        <span>Camera</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setReportFilters(prev => ({ ...prev, jam: !prev.jam }))}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 col-span-2 ${
+                                                            reportFilters.jam
+                                                                ? 'bg-orange-600/30 border border-orange-500/50 text-white shadow-[0_0_6px_rgba(249,115,22,0.3)]'
+                                                                : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        <AlertTriangle size={14} />
+                                                        <span>Traffic Jam</span>
+                                                    </button>
+                                                </div>
                                             </div>
+
+                                            {/* Time Horizon */}
+                                            <div>
+                                                <div className="text-white/60 text-[9px] uppercase font-bold tracking-wider mb-2">Time Range</div>
+                                                <div className="grid grid-cols-3 gap-1">
+                                                    {[
+                                                        { label: '15m', value: 0.25 },
+                                                        { label: '1h', value: 1 },
+                                                        { label: '6h', value: 6 },
+                                                        { label: '12h', value: 12 },
+                                                        { label: '24h', value: 24 },
+                                                        { label: '48h', value: 48 },
+                                                    ].map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            onClick={() => setTimeHorizon(option.value)}
+                                                            className={`h-7 text-[9px] font-bold rounded transition-all ${
+                                                                timeHorizon === option.value
+                                                                    ? 'bg-blue-600 text-white shadow-[0_0_8px_rgba(59,130,246,0.4)]'
+                                                                    : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                                            }`}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Active Reports Count */}
                                             {wazeData && (
-                                                <div className="bg-orange-900/20 p-2 rounded border border-orange-500/20 text-center">
-                                                    <div className="text-orange-400 text-[8px] uppercase font-bold mb-0.5">
-                                                        Active Alerts
+                                                <div className="bg-gradient-to-r from-blue-900/30 to-red-900/30 p-2 rounded border border-blue-500/30 text-center">
+                                                    <div className="text-blue-400 text-[8px] uppercase font-bold mb-0.5">
+                                                        Active Reports
                                                     </div>
                                                     <div className="text-white font-black text-lg">{wazeData.count ?? 0}</div>
                                                 </div>
@@ -1340,7 +1441,7 @@ export default function MapView() {
                 {/* Locate Me Button */}
                 <button
                     onClick={handleLocateMe}
-                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-purple-600/20 to-purple-800/20 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] hover:scale-105 active:scale-95"
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] hover:scale-105 active:scale-95"
                 >
                     <div className="relative">
                         <Locate size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
@@ -1348,29 +1449,41 @@ export default function MapView() {
                         <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full shadow-[0_0_6px_rgba(74,222,128,0.9)] animate-pulse" />
                     </div>
                     {/* Tooltip */}
-                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-purple-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-green-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
                         Locate Me
                     </div>
                 </button>
 
-                {/* Traffic Alerts Button */}
+                {/* Weather Button */}
+                <button
+                    onClick={() => setIsWeatherOpen(true)}
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-sky-600/20 to-blue-600/20 border-sky-500/30 text-sky-300 shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)] hover:scale-105 active:scale-95"
+                >
+                    <Cloud size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                    {/* Tooltip */}
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-sky-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Weather
+                    </div>
+                </button>
+
+                {/* Police Reports Button */}
                 <button
                     onClick={fetchWazeData}
                     disabled={isWazeLoading}
                     className={`group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 ${
                         isWazeEnabled
-                            ? 'bg-gradient-to-br from-orange-600/40 to-red-600/40 border-orange-500/50 text-white shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:shadow-[0_0_35px_rgba(249,115,22,0.8)]'
-                            : 'bg-gradient-to-br from-orange-600/20 to-red-600/20 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.3)] hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]'
+                            ? 'bg-gradient-to-br from-blue-600/40 to-red-600/40 border-blue-500/50 text-white shadow-[0_0_25px_rgba(59,130,246,0.6)] hover:shadow-[0_0_35px_rgba(59,130,246,0.8)]'
+                            : 'bg-gradient-to-br from-blue-600/20 to-red-600/20 border-blue-500/30 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]'
                     } hover:scale-105 active:scale-95 disabled:opacity-50`}
                 >
                     {isWazeLoading ? (
                         <div className="h-6 w-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <AlertTriangle size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
+                        <ShieldAlert size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
                     )}
                     {/* Tooltip */}
-                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-orange-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
-                        Traffic Alerts
+                    <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-2 bg-black/90 border border-blue-500/30 rounded-lg text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
+                        Police Reports
                     </div>
                 </button>
 
@@ -1403,6 +1516,13 @@ export default function MapView() {
                     onSelectDestination={(coords, name) => {
                         flyToLocation(coords, 12, `Flight Deck: ${name}`);
                     }}
+                />
+            )}
+
+            {/* WEATHER MODAL */}
+            {isWeatherOpen && (
+                <WeatherModal
+                    onClose={() => setIsWeatherOpen(false)}
                 />
             )}
 

@@ -19,7 +19,10 @@ import {
     Radio,
     Gamepad2,
     Radar,
-    RotateCcw
+    RotateCcw,
+    Target,
+    Orbit,
+    Satellite
 } from 'lucide-react';
 
 import { MapController } from '../lib/gamepad/map-controller';
@@ -28,6 +31,15 @@ import { loadSessionProfile } from '../lib/gamepad/storage';
 import { applyTacticalPresetV2 } from '../lib/gamepad/defaults-v2';
 import { ContextManager } from '../lib/gamepad/context-manager';
 import ControllerModal from './controller/ControllerModal';
+
+// Orbit & Satellite Mode imports
+import { CameraController } from '../map/camera/CameraController';
+import { LongPressRecognizer } from '../map/input/LongPressRecognizer';
+import { GestureCancelGuard } from '../map/input/GestureCancelGuard';
+import { GamepadRouter } from '../map/input/GamepadRouter';
+import { TargetOverlay } from '../map/ui/TargetOverlay';
+import { ModeIndicatorLED } from '../map/ui/ModeIndicatorLED';
+import { cameraModeStore, CameraModeState } from '../map/state/cameraModeStore';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -68,6 +80,13 @@ export default function MapView() {
     const [debugLogs, setDebugLogs] = useState<Array<{timestamp: number; type: 'log' | 'error' | 'warn'; emoji: string; messages: any[]}>>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    // Orbit & Satellite Mode state
+    const [cameraModeState, setCameraModeState] = useState<CameraModeState>(cameraModeStore.getState());
+    const cameraControllerRef = useRef<CameraController | null>(null);
+    const longPressRecognizerRef = useRef<LongPressRecognizer | null>(null);
+    const gestureCancelGuardRef = useRef<GestureCancelGuard | null>(null);
+    const gamepadRouterRef = useRef<GamepadRouter | null>(null);
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -284,6 +303,53 @@ export default function MapView() {
         };
     }, [isMapReady, isSettingsOpen]);
 
+    // Initialize Orbit & Satellite Mode system
+    useEffect(() => {
+        if (!map.current || !isMapReady) return;
+
+        console.log('🛸 [MapView] Initializing Orbit & Satellite Mode system');
+
+        // Create CameraController
+        const cameraController = new CameraController(map.current);
+        cameraControllerRef.current = cameraController;
+
+        // Subscribe to camera mode state changes
+        const unsubscribe = cameraModeStore.subscribe((state) => {
+            setCameraModeState(state);
+        });
+
+        // Create LongPressRecognizer
+        const longPressRecognizer = new LongPressRecognizer(map.current, (event) => {
+            console.log('🎯 [MapView] Long press detected at', event.lngLat);
+            cameraModeStore.enterTargeting(event.lngLat, event.screenXY);
+        });
+        longPressRecognizerRef.current = longPressRecognizer;
+
+        // Create GestureCancelGuard
+        const gestureCancelGuard = new GestureCancelGuard(map.current, cameraController);
+        gestureCancelGuardRef.current = gestureCancelGuard;
+
+        // Create GamepadRouter
+        const gamepadRouter = new GamepadRouter(cameraController.getOrbitController());
+        gamepadRouter.start();
+        gamepadRouterRef.current = gamepadRouter;
+
+        console.log('✅ [MapView] Orbit & Satellite Mode system initialized');
+
+        return () => {
+            console.log('🧹 [MapView] Cleaning up Orbit & Satellite Mode system');
+            unsubscribe();
+            longPressRecognizer.cleanup();
+            gestureCancelGuard.cleanup();
+            gamepadRouter.cleanup();
+            cameraController.cleanup();
+            cameraControllerRef.current = null;
+            longPressRecognizerRef.current = null;
+            gestureCancelGuardRef.current = null;
+            gamepadRouterRef.current = null;
+        };
+    }, [isMapReady]);
+
     // Waze Layers Initialization & Updates
     useEffect(() => {
         if (!map.current || !isMapReady) return;
@@ -464,6 +530,11 @@ export default function MapView() {
             map.current.setTerrain({ source: 'terrain-source', exaggeration: terrainExaggeration });
         } else {
             map.current.setTerrain(null);
+        }
+
+        // Update camera controller with terrain exaggeration changes
+        if (cameraControllerRef.current) {
+            cameraControllerRef.current.setTerrainExaggeration(terrainExaggeration);
         }
     }, [currentStyle, isMapReady, terrainEnabled, terrainExaggeration]);
 
@@ -687,6 +758,30 @@ export default function MapView() {
         const currentIndex = MAP_STYLES.findIndex(s => s.id === currentStyle);
         const nextIndex = (currentIndex + 1) % MAP_STYLES.length;
         setCurrentStyle(MAP_STYLES[nextIndex].id);
+    };
+
+    // Orbit & Satellite Mode handlers
+    const handleOrbitMode = async () => {
+        if (!cameraControllerRef.current) return;
+        const target = cameraModeStore.getState().target;
+        if (!target) return;
+
+        console.log('🛸 [MapView] Activating orbit mode');
+        await cameraControllerRef.current.startOrbit(target);
+    };
+
+    const handleSatelliteMode = async () => {
+        if (!cameraControllerRef.current) return;
+        const target = cameraModeStore.getState().target;
+        if (!target) return;
+
+        console.log('🛰️ [MapView] Activating satellite mode');
+        await cameraControllerRef.current.startSatellite(target);
+    };
+
+    const handleDismissTargeting = () => {
+        console.log('🚫 [MapView] Dismissing targeting overlay');
+        cameraModeStore.cancelAll();
     };
 
     // Intercept console logs for debug panel
@@ -1301,6 +1396,24 @@ export default function MapView() {
                     mapRef={map.current || undefined}
                 />
             )}
+
+            {/* Orbit & Satellite Mode UI */}
+            {cameraModeState.mode === 'targeting' && cameraModeState.overlayScreenXY && (
+                <TargetOverlay
+                    screenXY={cameraModeState.overlayScreenXY}
+                    onOrbit={handleOrbitMode}
+                    onSatellite={handleSatelliteMode}
+                    onDismiss={handleDismissTargeting}
+                />
+            )}
+
+            <ModeIndicatorLED
+                mode={
+                    cameraModeState.mode === 'orbit_active' ? 'orbit' :
+                    cameraModeState.mode === 'satellite_active' ? 'satellite' :
+                    'idle'
+                }
+            />
 
             <style jsx global>{`
                 .map-fade-in {

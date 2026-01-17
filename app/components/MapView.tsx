@@ -617,7 +617,16 @@ export default function MapView() {
                 }
             },
             (error) => {
-                console.error('[MapView] Error obtaining location:', error.message);
+                // Handle geolocation errors gracefully
+                if (error.code === error.PERMISSION_DENIED) {
+                    console.log('📍 [MapView] Location permission denied by user');
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    console.warn('📍 [MapView] Location unavailable');
+                } else if (error.code === error.TIMEOUT) {
+                    console.warn('📍 [MapView] Location request timed out');
+                } else {
+                    console.warn('📍 [MapView] Location error:', error.message);
+                }
             },
             { enableHighAccuracy: true }
         );

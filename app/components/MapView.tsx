@@ -22,7 +22,10 @@ import {
 
 import { MapController } from '../lib/gamepad/map-controller';
 import { ControllerProfile } from '../lib/gamepad/types';
+import { loadSessionProfile } from '../lib/gamepad/storage';
+import { applyTacticalPreset } from '../lib/gamepad/defaults';
 import ControllerModal from './controller/ControllerModal';
+import DebugModal from './controller/DebugModal';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -55,6 +58,9 @@ export default function MapView() {
     const [timeHorizon, setTimeHorizon] = useState(1); // in hours
     const [showControllerModal, setShowControllerModal] = useState(false);
     const controllerRef = useRef<MapController | null>(null);
+    const [currentProfile, setCurrentProfile] = useState<ControllerProfile>(() => {
+        return loadSessionProfile() || applyTacticalPreset();
+    });
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -962,14 +968,22 @@ export default function MapView() {
                     onClose={() => setShowControllerModal(false)}
                     onSave={(profile: ControllerProfile) => {
                         controllerRef.current?.updateProfile(profile);
+                        setCurrentProfile(profile);
                     }}
                     onSaveClose={(profile: ControllerProfile) => {
                         controllerRef.current?.updateProfile(profile);
+                        setCurrentProfile(profile);
                         setShowControllerModal(false);
                     }}
                     mapRef={map.current || undefined}
                 />
             )}
+
+            {/* Debug Modal - Always available */}
+            <DebugModal
+                profile={currentProfile}
+                mapRef={map.current || undefined}
+            />
 
             <style jsx global>{`
                 .map-fade-in {

@@ -3,6 +3,7 @@ import { ControllerProfile, Binding } from './types';
 import { loadSessionProfile } from './storage';
 import { DEFAULT_PROFILE, applyTacticalPreset } from './defaults';
 import { getActiveGamepad, readBindingValue, applyDeadzone, applyCurve } from './gamepad-reader';
+import { getGlideEasingFn, getFlyEasingFn } from './flight-modes';
 
 export class MapController {
     private map: maplibregl.Map;
@@ -14,6 +15,15 @@ export class MapController {
     private accumulators = { bearing: 0, pitch: 0 };
     private zoomInSpeed = 0; // Tap-based speed: 0, 1, 2, 4, 8
     private zoomOutSpeed = 0; // Tap-based speed: 0, 1, 2, 4, 8
+
+    // Velocity state for smoothing/inertia
+    private velocities = {
+        panX: 0,
+        panY: 0,
+        rotate: 0,
+        pitch: 0,
+        zoom: 0
+    };
 
     constructor(map: maplibregl.Map) {
         this.map = map;
@@ -50,6 +60,14 @@ export class MapController {
         this.animationFrameId = requestAnimationFrame(this.loop);
     };
 
+    /**
+     * Apply inertia smoothing to velocity.
+     * Higher smoothing = more inertia/float.
+     */
+    private smoothToward(current: number, target: number, smoothing: number): number {
+        return current + (target - current) * smoothing;
+    }
+
     private processGamepad(gp: Gamepad, dt: number) {
         const { settings, bindings } = this.profile;
 
@@ -71,35 +89,52 @@ export class MapController {
         const rot = applyCurve(applyDeadzone(rotRaw, settings.deadzone), settings.sensitivity);
         const pit = applyCurve(applyDeadzone(pitRaw, settings.deadzone), settings.sensitivity);
 
-        // Pan (using user-configured pan speed)
-        if (panX || panY) {
+        // Apply smoothing/inertia to velocities
+        this.velocities.panX = this.smoothToward(this.velocities.panX, panX * settings.panSpeedPxPerSec, settings.smoothing);
+        this.velocities.panY = this.smoothToward(this.velocities.panY, panY * settings.panSpeedPxPerSec, settings.smoothing);
+        this.velocities.rotate = this.smoothToward(this.velocities.rotate, rot * settings.rotateDegPerSec, settings.smoothing);
+        this.velocities.pitch = this.smoothToward(this.velocities.pitch, pit * settings.pitchDegPerSec, settings.smoothing);
+
+        // Get easing function for glide animation
+        const glideEasingFn = getGlideEasingFn(settings.glideEasing);
+
+        // Pan (using smoothed velocity + glide animation)
+        if (this.velocities.panX || this.velocities.panY) {
             this.map.panBy(
-                [panX * settings.panSpeedPxPerSec * dt, panY * settings.panSpeedPxPerSec * dt],
-                { duration: 0 }
+                [this.velocities.panX * dt, this.velocities.panY * dt],
+                { duration: settings.glideMs, easing: glideEasingFn }
             );
         }
 
-        // Rotate (accumulator pattern - preserve existing behavior)
-        if (rot) {
-            this.accumulators.bearing += rot * settings.rotateDegPerSec * dt;
+        // Rotate (using smoothed velocity + glide animation)
+        if (this.velocities.rotate) {
+            this.accumulators.bearing += this.velocities.rotate * dt;
             if (Math.abs(this.accumulators.bearing) > 1) {
-                this.map.setBearing(this.map.getBearing() + this.accumulators.bearing);
+                this.map.rotateTo(
+                    this.map.getBearing() + this.accumulators.bearing,
+                    { duration: settings.glideMs, easing: glideEasingFn }
+                );
                 this.accumulators.bearing = 0;
             }
         }
 
-        // Pitch (accumulator pattern with clamping, rotates around lower viewport)
-        if (pit) {
-            this.accumulators.pitch += pit * settings.pitchDegPerSec * dt;
+        // Pitch (using smoothed velocity + glide animation)
+        if (this.velocities.pitch) {
+            this.accumulators.pitch += this.velocities.pitch * dt;
             if (Math.abs(this.accumulators.pitch) > 1) {
                 const maxPitch = settings.unlockMaxPitch ? 85 : 60;
                 const newPitch = Math.max(0, Math.min(maxPitch, this.map.getPitch() + this.accumulators.pitch));
-                
+
                 // Rotate around a point 70% down the viewport (closer to camera position)
                 const container = this.map.getContainer();
                 const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
-                
-                this.map.setPitch(newPitch, { around: this.map.unproject([centerPoint.x, centerPoint.y]) });
+
+                this.map.easeTo({
+                    pitch: newPitch,
+                    duration: settings.glideMs,
+                    easing: glideEasingFn,
+                    around: this.map.unproject([centerPoint.x, centerPoint.y])
+                });
                 this.accumulators.pitch = 0;
             }
         }
@@ -109,11 +144,14 @@ export class MapController {
     }
 
     private handleButtonActions(gp: Gamepad, bindings: ControllerProfile['bindings'], settings: ControllerProfile['settings'], dt: number) {
+        // Get easing function for flyTo actions
+        const flyEasingFn = getFlyEasingFn(settings.flyEasing);
+
         // Reset North
         if (bindings.reset_north?.type === 'button') {
             const down = !!gp.buttons[bindings.reset_north.index]?.pressed;
             if (this.pressedOnce('reset_north', down)) {
-                this.map.rotateTo(0, { duration: 150 });
+                this.map.rotateTo(0, { duration: 150, easing: flyEasingFn });
             }
         }
 
@@ -126,7 +164,9 @@ export class MapController {
                     zoom: 3.92,
                     pitch: 0,
                     bearing: 0,
-                    duration: 1500,
+                    speed: settings.flySpeed,
+                    curve: settings.flyCurve,
+                    easing: flyEasingFn,
                 });
             }
         }

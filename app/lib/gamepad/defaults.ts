@@ -3,16 +3,32 @@ import { ControllerProfile } from './types';
 export const DEFAULT_PROFILE: ControllerProfile = {
     version: 1,
     settings: {
+        flightMode: 'joyflight',
+
+        // input processing
         deadzone: 0.12,
         sensitivity: 1.25,
+        smoothing: 0.18,
         leftStickInvertX: false,
         leftStickInvertY: true,   // Flight controls - inverted by default
         rightStickInvertX: false,
         rightStickInvertY: false,
-        panSpeedPxPerSec: 900,
-        rotateDegPerSec: 120,
-        pitchDegPerSec: 80,
-        zoomUnitsPerSec: 1.2,
+
+        // continuous camera speeds (per second) - defaults from joyflight preset
+        panSpeedPxPerSec: 650,
+        rotateDegPerSec: 75,
+        pitchDegPerSec: 45,
+        zoomUnitsPerSec: 0.8,
+
+        // continuous camera animation
+        glideMs: 40,
+        glideEasing: 'easeInOut',
+
+        // discrete transitions (recenter/go-to)
+        flySpeed: 0.9,
+        flyCurve: 1.2,
+        flyEasing: 'easeInOut',
+
         unlockMaxPitch: false,
     },
     bindings: {},

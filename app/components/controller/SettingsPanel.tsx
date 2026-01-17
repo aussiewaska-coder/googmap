@@ -1,6 +1,7 @@
 'use client';
 
-import { ControllerProfile } from '@/app/lib/gamepad/types';
+import { ControllerProfile, FlightMode, GlideEasing, FlyEasing } from '@/app/lib/gamepad/types';
+import { applyFlightModePreset, detectFlightMode } from '@/app/lib/gamepad/flight-modes';
 
 interface SettingsPanelProps {
     settings: ControllerProfile['settings'];
@@ -14,6 +15,16 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
         onChange({ ...settings, [key]: value });
     };
 
+    const handleFlightModeChange = (mode: FlightMode) => {
+        // Apply the flight mode preset
+        const updatedSettings = applyFlightModePreset(mode, settings);
+        onChange(updatedSettings);
+    };
+
+    // Detect the actual active mode (null = custom)
+    const activeMode = detectFlightMode(settings);
+    const isCustom = activeMode === null;
+
     return (
         <div className="bg-gradient-to-br from-zinc-900/80 to-black/80 border border-blue-500/20 rounded-2xl p-6 shadow-2xl shadow-blue-500/10">
             {/* Header */}
@@ -23,6 +34,77 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     Tactical Control Settings
                 </div>
                 <div className="flex-1 h-[1px] bg-gradient-to-r from-blue-500/30 to-transparent"></div>
+            </div>
+
+            {/* Flight Mode Selection */}
+            <div className="mb-8 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">🚁</span>
+                    <div>
+                        <div className="text-purple-400 font-bold text-sm uppercase tracking-wider">Flight Mode</div>
+                        <div className="text-white/40 text-[10px]">
+                            {isCustom ? 'Custom settings active' : 'Select your control feel preset'}
+                        </div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <button
+                        onClick={() => handleFlightModeChange('joyflight')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                            activeMode === 'joyflight'
+                                ? 'bg-gradient-to-br from-purple-600 to-blue-600 border-purple-500 shadow-lg shadow-purple-500/50'
+                                : 'bg-black/40 border-white/10 hover:border-purple-500/50 hover:bg-purple-900/20'
+                        }`}
+                    >
+                        <div className="text-white font-bold text-sm mb-1">🎮 Joyflight</div>
+                        <div className="text-white/60 text-[10px]">Smooth, gentle</div>
+                    </button>
+                    <button
+                        onClick={() => handleFlightModeChange('fighter')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                            activeMode === 'fighter'
+                                ? 'bg-gradient-to-br from-red-600 to-orange-600 border-red-500 shadow-lg shadow-red-500/50'
+                                : 'bg-black/40 border-white/10 hover:border-red-500/50 hover:bg-red-900/20'
+                        }`}
+                    >
+                        <div className="text-white font-bold text-sm mb-1">✈️ Fighter Jet</div>
+                        <div className="text-white/60 text-[10px]">Snappy, fast</div>
+                    </button>
+                    <button
+                        onClick={() => handleFlightModeChange('ufo')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                            activeMode === 'ufo'
+                                ? 'bg-gradient-to-br from-green-600 to-cyan-600 border-green-500 shadow-lg shadow-green-500/50'
+                                : 'bg-black/40 border-white/10 hover:border-green-500/50 hover:bg-green-900/20'
+                        }`}
+                    >
+                        <div className="text-white font-bold text-sm mb-1">🛸 UFO</div>
+                        <div className="text-white/60 text-[10px]">Fast, floaty</div>
+                    </button>
+                    <button
+                        onClick={() => handleFlightModeChange('satellite')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                            activeMode === 'satellite'
+                                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-500 shadow-lg shadow-blue-500/50'
+                                : 'bg-black/40 border-white/10 hover:border-blue-500/50 hover:bg-blue-900/20'
+                        }`}
+                    >
+                        <div className="text-white font-bold text-sm mb-1">🛰️ Satellite</div>
+                        <div className="text-white/60 text-[10px]">Slow, precise</div>
+                    </button>
+                    {/* Custom Mode Indicator */}
+                    <button
+                        disabled
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                            isCustom
+                                ? 'bg-gradient-to-br from-yellow-600 to-amber-600 border-yellow-500 shadow-lg shadow-yellow-500/50'
+                                : 'bg-black/40 border-white/10 opacity-50'
+                        }`}
+                    >
+                        <div className="text-white font-bold text-sm mb-1">⚙️ Custom</div>
+                        <div className="text-white/60 text-[10px]">Your settings</div>
+                    </button>
+                </div>
             </div>
 
             {/* 2-Column Layout */}
@@ -77,6 +159,28 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                                 step="0.05"
                                 value={settings.sensitivity}
                                 onChange={(e) => updateSetting('sensitivity', parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50"
+                            />
+                        </div>
+
+                        {/* Smoothing */}
+                        <div className="mb-4 pb-4 border-b border-white/5">
+                            <div className="flex justify-between items-center mb-2">
+                                <div>
+                                    <div className="text-white text-xs font-bold">Smoothing (Inertia)</div>
+                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Flight Feel</div>
+                                </div>
+                                <span className="text-cyan-400 font-mono text-xs font-bold px-2 py-1 bg-cyan-500/10 rounded border border-cyan-500/20">
+                                    {settings.smoothing.toFixed(2)}
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="0.30"
+                                step="0.01"
+                                value={settings.smoothing}
+                                onChange={(e) => updateSetting('smoothing', parseFloat(e.target.value))}
                                 className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50"
                             />
                         </div>
@@ -319,6 +423,130 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                             <span>SMOOTH</span>
                             <span>NORMAL</span>
                             <span>ROCKET</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Advanced Animation Settings */}
+            <div className="mt-8 bg-gradient-to-br from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-5">
+                    <span className="text-2xl">⚙️</span>
+                    <div>
+                        <div className="text-orange-400 font-bold text-sm uppercase tracking-wider">Advanced Animation</div>
+                        <div className="text-white/40 text-[10px]">Fine-tune camera motion feel</div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Glide Animation (Continuous) */}
+                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                        <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">
+                            <span className="text-cyan-400">〰️</span>
+                            Continuous Motion (Glide)
+                        </div>
+
+                        {/* Glide Duration */}
+                        <div className="mb-4 pb-4 border-b border-white/5">
+                            <div className="flex justify-between items-center mb-2">
+                                <div>
+                                    <div className="text-white text-xs font-bold">Glide Duration</div>
+                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Motion Smoothness</div>
+                                </div>
+                                <span className="text-cyan-400 font-mono text-xs font-bold px-2 py-1 bg-cyan-500/10 rounded border border-cyan-500/20">
+                                    {settings.glideMs}ms
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0"
+                                max="80"
+                                step="5"
+                                value={settings.glideMs}
+                                onChange={(e) => updateSetting('glideMs', parseInt(e.target.value))}
+                                className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50"
+                            />
+                        </div>
+
+                        {/* Glide Easing */}
+                        <div>
+                            <div className="text-white text-xs font-bold mb-2">Glide Easing</div>
+                            <select
+                                value={settings.glideEasing}
+                                onChange={(e) => updateSetting('glideEasing', e.target.value as GlideEasing)}
+                                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                            >
+                                <option value="linear">Linear</option>
+                                <option value="easeOut">Ease Out</option>
+                                <option value="easeInOut">Ease In-Out</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Fly Animation (Discrete) */}
+                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                        <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">
+                            <span className="text-orange-400">🎯</span>
+                            Discrete Actions (FlyTo)
+                        </div>
+
+                        {/* Fly Speed */}
+                        <div className="mb-4 pb-4 border-b border-white/5">
+                            <div className="flex justify-between items-center mb-2">
+                                <div>
+                                    <div className="text-white text-xs font-bold">Fly Speed</div>
+                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Jump Speed</div>
+                                </div>
+                                <span className="text-orange-400 font-mono text-xs font-bold px-2 py-1 bg-orange-500/10 rounded border border-orange-500/20">
+                                    {settings.flySpeed.toFixed(1)}x
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.4"
+                                max="2.2"
+                                step="0.1"
+                                value={settings.flySpeed}
+                                onChange={(e) => updateSetting('flySpeed', parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-orange-400 [&::-webkit-slider-thumb]:to-red-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-orange-500/50"
+                            />
+                        </div>
+
+                        {/* Fly Curve */}
+                        <div className="mb-4 pb-4 border-b border-white/5">
+                            <div className="flex justify-between items-center mb-2">
+                                <div>
+                                    <div className="text-white text-xs font-bold">Fly Curve</div>
+                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Arc Height</div>
+                                </div>
+                                <span className="text-orange-400 font-mono text-xs font-bold px-2 py-1 bg-orange-500/10 rounded border border-orange-500/20">
+                                    {settings.flyCurve.toFixed(1)}
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.8"
+                                max="2.0"
+                                step="0.1"
+                                value={settings.flyCurve}
+                                onChange={(e) => updateSetting('flyCurve', parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-orange-400 [&::-webkit-slider-thumb]:to-red-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-orange-500/50"
+                            />
+                        </div>
+
+                        {/* Fly Easing */}
+                        <div>
+                            <div className="text-white text-xs font-bold mb-2">Fly Easing</div>
+                            <select
+                                value={settings.flyEasing}
+                                onChange={(e) => updateSetting('flyEasing', e.target.value as FlyEasing)}
+                                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+                            >
+                                <option value="easeOut">Ease Out</option>
+                                <option value="easeInOut">Ease In-Out</option>
+                                <option value="easeInCubic">Ease In Cubic</option>
+                                <option value="easeOutQuint">Ease Out Quint</option>
+                            </select>
                         </div>
                     </div>
                 </div>

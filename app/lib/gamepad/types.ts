@@ -2,20 +2,40 @@ export type Binding =
     | { type: 'button'; index: number }
     | { type: 'axis'; index: number; sign: 1 | -1 };
 
+export type FlightMode = "joyflight" | "fighter" | "ufo" | "satellite";
+export type GlideEasing = "linear" | "easeOut" | "easeInOut";
+export type FlyEasing = "easeOut" | "easeInOut" | "easeInCubic" | "easeOutQuint";
+
 export interface ControllerProfile {
     version: 1;
     device?: { id?: string; mapping?: string; index?: number };
     settings: {
-        deadzone: number;           // e.g. 0.12
-        sensitivity: number;        // e.g. 1.25
+        flightMode: FlightMode;
+
+        // input processing
+        deadzone: number;           // 0..0.35
+        sensitivity: number;        // response curve (>1 more aggressive)
+        smoothing: number;          // 0..1, inertia factor
         leftStickInvertX: boolean;  // Left stick X (rotate)
         leftStickInvertY: boolean;  // Left stick Y (pitch)
         rightStickInvertX: boolean; // Right stick X (pan horizontal)
         rightStickInvertY: boolean; // Right stick Y (pan vertical)
-        panSpeedPxPerSec: number;   // e.g. 900
-        rotateDegPerSec: number;    // e.g. 120
-        pitchDegPerSec: number;     // e.g. 80
-        zoomUnitsPerSec: number;    // e.g. 1.2
+
+        // continuous camera speeds (per second)
+        panSpeedPxPerSec: number;
+        rotateDegPerSec: number;
+        pitchDegPerSec: number;
+        zoomUnitsPerSec: number;
+
+        // continuous camera animation
+        glideMs: number;            // 0..80 recommended
+        glideEasing: GlideEasing;
+
+        // discrete transitions (recenter/go-to)
+        flySpeed: number;           // FlyToOptions.speed
+        flyCurve: number;           // FlyToOptions.curve
+        flyEasing: FlyEasing;
+
         unlockMaxPitch: boolean;    // Allow pitch beyond 60° (up to 85° - MapLibre max)
     };
     bindings: {
@@ -23,7 +43,8 @@ export interface ControllerProfile {
         pan_y?: Binding;
         rotate_x?: Binding;
         pitch_y?: Binding;
-        zoom_in?: Binding;
+        zoom?: Binding;             // analog zoom (optional)
+        zoom_in?: Binding;          // button zoom (optional)
         zoom_out?: Binding;
         reset_north?: Binding;
         recenter?: Binding;

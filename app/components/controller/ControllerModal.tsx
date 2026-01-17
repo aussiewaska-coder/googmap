@@ -54,7 +54,8 @@ export default function ControllerModal({ onClose, onSave, mapRef }: ControllerM
     const handlePreset = () => {
         const presetProfile = applyTacticalPreset();
         setProfile(presetProfile);
-        // Immediately apply to MapController
+        // Save to sessionStorage and apply to MapController
+        saveSessionProfile(presetProfile);
         onSave(presetProfile);
     };
 
@@ -123,7 +124,13 @@ export default function ControllerModal({ onClose, onSave, mapRef }: ControllerM
                     <div className="mt-8">
                         <SettingsPanel
                             settings={profile.settings}
-                            onChange={(settings) => setProfile(prev => ({ ...prev, settings }))}
+                            onChange={(settings) => {
+                                const updatedProfile = { ...profile, settings };
+                                setProfile(updatedProfile);
+                                // Auto-save and apply to MapController when settings change
+                                saveSessionProfile(updatedProfile);
+                                onSave(updatedProfile);
+                            }}
                             currentPitch={currentPitch}
                             onPitchChange={handlePitchChange}
                         />

@@ -15,10 +15,11 @@ import BindModal from './BindModal';
 interface ControllerModalProps {
     onClose: () => void;
     onSave: (profile: ControllerProfile) => void;
+    onSaveClose: (profile: ControllerProfile) => void;
     mapRef?: maplibregl.Map;
 }
 
-export default function ControllerModal({ onClose, onSave, mapRef }: ControllerModalProps) {
+export default function ControllerModal({ onClose, onSave, onSaveClose, mapRef }: ControllerModalProps) {
     const [profile, setProfile] = useState<ControllerProfile>(() => {
         return loadSessionProfile() || applyTacticalPreset();
     });
@@ -48,7 +49,7 @@ export default function ControllerModal({ onClose, onSave, mapRef }: ControllerM
 
     const handleSaveClose = () => {
         saveSessionProfile(profile);
-        onSave(profile);
+        onSaveClose(profile);
     };
 
     const handlePreset = () => {

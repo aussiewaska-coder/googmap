@@ -962,6 +962,9 @@ export default function MapView() {
                     onClose={() => setShowControllerModal(false)}
                     onSave={(profile: ControllerProfile) => {
                         controllerRef.current?.updateProfile(profile);
+                    }}
+                    onSaveClose={(profile: ControllerProfile) => {
+                        controllerRef.current?.updateProfile(profile);
                         setShowControllerModal(false);
                     }}
                     mapRef={map.current || undefined}

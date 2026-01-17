@@ -66,8 +66,22 @@ export class MapController {
     }
 
     updateProfile(profile: ControllerProfileV2) {
+        console.log('');
+        console.log('🟢 ===== MAP CONTROLLER: UPDATE PROFILE =====');
+        console.log('🟢 Received profile version:', profile.version);
+        console.log('🟢 Map bindings received:', profile.bindings.map);
+        console.log('🟢 Global bindings received:', profile.bindings.global);
+        console.log('🟢 Settings received:', profile.settings);
+
         this.profile = profile;
-        console.log('[MapController] Profile updated');
+
+        console.log('✅ [MapController] Profile updated in memory');
+        console.log('🟢 Active profile now has MAP.PAN_X:', profile.bindings.map['MAP.PAN_X']);
+        console.log('🟢 Active profile now has MAP.PAN_Y:', profile.bindings.map['MAP.PAN_Y']);
+        console.log('🟢 Active profile now has MAP.ROTATE_X:', profile.bindings.map['MAP.ROTATE_X']);
+        console.log('🟢 Active profile now has MAP.PITCH_Y:', profile.bindings.map['MAP.PITCH_Y']);
+        console.log('🟢 ===== UPDATE COMPLETE =====');
+        console.log('');
     }
 
     private start() {

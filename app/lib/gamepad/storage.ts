@@ -69,13 +69,33 @@ export function loadSessionProfile(): ControllerProfileV2 | null {
 export function saveSessionProfile(profile: ControllerProfileV2): void {
     if (typeof window === 'undefined') return;
 
+    console.log('');
+    console.log('🔵 ===== SAVE PROFILE TO SESSION STORAGE =====');
+    console.log('🔵 Profile version:', profile.version);
+    console.log('🔵 Labels count:', Object.keys(profile.labels || {}).length);
+    console.log('🔵 Global bindings:', profile.bindings.global);
+    console.log('🔵 Map bindings:', profile.bindings.map);
+    console.log('🔵 Menu bindings:', profile.bindings.menu);
+    console.log('🔵 Drone bindings:', profile.bindings.drone_gimbal);
+    console.log('🔵 Flight mode:', profile.settings.flightMode);
+    console.log('🔵 Deadzone:', profile.settings.deadzone);
+    console.log('🔵 Sensitivity:', profile.settings.sensitivity);
+
     if (!isV2Profile(profile)) {
-        console.error('[Storage] Attempted to save non-v2 profile');
+        console.error('❌ [Storage] NOT A V2 PROFILE! ABORTING SAVE!');
+        console.log('🔵 ===== SAVE ABORTED =====');
+        console.log('');
         return;
     }
 
-    sessionStorage.setItem(KEY_V2, JSON.stringify(profile));
-    console.log('[Storage] Saved v2 profile');
+    const json = JSON.stringify(profile);
+    sessionStorage.setItem(KEY_V2, json);
+
+    console.log('✅ [Storage] SAVED TO sessionStorage');
+    console.log('🔵 Storage key:', KEY_V2);
+    console.log('🔵 JSON length:', json.length, 'characters');
+    console.log('🔵 ===== SAVE COMPLETE =====');
+    console.log('');
 }
 
 /**

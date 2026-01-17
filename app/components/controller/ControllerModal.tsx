@@ -50,8 +50,18 @@ export default function ControllerModal({ onClose, onSave, onSaveClose, mapRef }
     }, [mapRef]);
 
     const handleSaveClose = () => {
+        console.log('');
+        console.log('🟡 ===== CONTROLLER MODAL: SAVE & CLOSE CLICKED =====');
+        console.log('🟡 Profile being saved:', profile);
+        console.log('🟡 Calling saveSessionProfile...');
+
         saveSessionProfile(profile);
+
+        console.log('🟡 Calling onSaveClose to notify MapView...');
         onSaveClose(profile);
+
+        console.log('🟡 ===== SAVE & CLOSE COMPLETE =====');
+        console.log('');
     };
 
     const handlePreset = () => {
@@ -164,11 +174,21 @@ export default function ControllerModal({ onClose, onSave, onSaveClose, mapRef }
                         <SettingsPanel
                             settings={profile.settings}
                             onChange={(settings) => {
+                                console.log('');
+                                console.log('🟣 ===== SETTINGS CHANGED (AUTO-SAVE) =====');
+                                console.log('🟣 New settings:', settings);
+
                                 const updatedProfile = { ...profile, settings };
                                 setProfile(updatedProfile);
-                                // Auto-save and apply to MapController when settings change
+
+                                console.log('🟣 Calling saveSessionProfile (auto-save)...');
                                 saveSessionProfile(updatedProfile);
+
+                                console.log('🟣 Calling onSave to update MapController...');
                                 onSave(updatedProfile);
+
+                                console.log('🟣 ===== AUTO-SAVE COMPLETE =====');
+                                console.log('');
                             }}
                             currentPitch={currentPitch}
                             onPitchChange={handlePitchChange}

@@ -27,6 +27,7 @@ import { applyTacticalPresetV2 } from '../lib/gamepad/defaults-v2';
 import { ContextManager } from '../lib/gamepad/context-manager';
 import ControllerModal from './controller/ControllerModal';
 import DebugModal from './controller/DebugModal';
+import DebugLogModal from './DebugLogModal';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -1029,6 +1030,9 @@ export default function MapView() {
                 profile={currentProfile}
                 mapRef={map.current || undefined}
             />
+
+            {/* Debug Log Modal - Right side console logs */}
+            <DebugLogModal />
 
             <style jsx global>{`
                 .map-fade-in {

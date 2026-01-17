@@ -434,55 +434,11 @@ export default function SettingsPanel({ settings, onChange, currentPitch = 0, on
                     <span className="text-2xl">⚙️</span>
                     <div>
                         <div className="text-orange-400 font-bold text-sm uppercase tracking-wider">Advanced Animation</div>
-                        <div className="text-white/40 text-[10px]">Fine-tune camera motion feel</div>
+                        <div className="text-white/40 text-[10px]">Button action animation settings</div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Glide Animation (Continuous) */}
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
-                        <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">
-                            <span className="text-cyan-400">〰️</span>
-                            Continuous Motion (Glide)
-                        </div>
-
-                        {/* Glide Duration */}
-                        <div className="mb-4 pb-4 border-b border-white/5">
-                            <div className="flex justify-between items-center mb-2">
-                                <div>
-                                    <div className="text-white text-xs font-bold">Glide Duration</div>
-                                    <div className="text-white/40 text-[9px] uppercase tracking-wide">Motion Smoothness</div>
-                                </div>
-                                <span className="text-cyan-400 font-mono text-xs font-bold px-2 py-1 bg-cyan-500/10 rounded border border-cyan-500/20">
-                                    {settings.glideMs}ms
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="80"
-                                step="5"
-                                value={settings.glideMs}
-                                onChange={(e) => updateSetting('glideMs', parseInt(e.target.value))}
-                                className="w-full h-1.5 bg-gradient-to-r from-zinc-800 to-zinc-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-cyan-400 [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/50"
-                            />
-                        </div>
-
-                        {/* Glide Easing */}
-                        <div>
-                            <div className="text-white text-xs font-bold mb-2">Glide Easing</div>
-                            <select
-                                value={settings.glideEasing}
-                                onChange={(e) => updateSetting('glideEasing', e.target.value as GlideEasing)}
-                                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
-                            >
-                                <option value="linear">Linear</option>
-                                <option value="easeOut">Ease Out</option>
-                                <option value="easeInOut">Ease In-Out</option>
-                            </select>
-                        </div>
-                    </div>
-
+                <div className="max-w-2xl">
                     {/* Fly Animation (Discrete) */}
                     <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                         <div className="text-white text-sm font-bold mb-4 flex items-center gap-2">

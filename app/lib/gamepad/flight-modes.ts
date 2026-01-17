@@ -6,7 +6,6 @@ export interface FlightModePreset {
     pitchDegPerSec: number;
     zoomUnitsPerSec: number;
     smoothing: number;
-    glideMs: number;
     flySpeed: number;
     flyCurve: number;
     flyEasing: FlyEasing;
@@ -19,7 +18,6 @@ export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
         pitchDegPerSec: 45,
         zoomUnitsPerSec: 0.8,
         smoothing: 0.18,
-        glideMs: 40,
         flySpeed: 0.9,
         flyCurve: 1.2,
         flyEasing: 'easeInOut',
@@ -30,7 +28,6 @@ export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
         pitchDegPerSec: 95,
         zoomUnitsPerSec: 1.4,
         smoothing: 0.10,
-        glideMs: 16,
         flySpeed: 1.4,
         flyCurve: 1.1,
         flyEasing: 'easeOut',
@@ -41,7 +38,6 @@ export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
         pitchDegPerSec: 140,
         zoomUnitsPerSec: 2.2,
         smoothing: 0.16,
-        glideMs: 28,
         flySpeed: 1.7,
         flyCurve: 1.4,
         flyEasing: 'easeOutQuint',
@@ -52,7 +48,6 @@ export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
         pitchDegPerSec: 25,
         zoomUnitsPerSec: 1.8,
         smoothing: 0.20,
-        glideMs: 55,
         flySpeed: 0.7,
         flyCurve: 1.8,
         flyEasing: 'easeInOut',
@@ -76,7 +71,8 @@ export const FLY_EASING_FUNCTIONS: Record<FlyEasing, (t: number) => number> = {
 
 /**
  * Apply a flight mode preset to the given settings.
- * This updates speed, smoothing, glide, and fly settings based on the mode.
+ * This updates speed, smoothing, and fly settings based on the mode.
+ * Note: glideMs and glideEasing are no longer used (continuous motion uses duration: 0).
  */
 export function applyFlightModePreset(mode: FlightMode, currentSettings: any): any {
     const preset = FLIGHT_MODE_PRESETS[mode];
@@ -88,7 +84,6 @@ export function applyFlightModePreset(mode: FlightMode, currentSettings: any): a
         pitchDegPerSec: preset.pitchDegPerSec,
         zoomUnitsPerSec: preset.zoomUnitsPerSec,
         smoothing: preset.smoothing,
-        glideMs: preset.glideMs,
         flySpeed: preset.flySpeed,
         flyCurve: preset.flyCurve,
         flyEasing: preset.flyEasing,
@@ -112,6 +107,7 @@ export function getFlyEasingFn(easing: FlyEasing): (t: number) => number {
 /**
  * Check if the current settings match the preset for the given flight mode.
  * Returns true if all flight-mode-controlled settings match the preset.
+ * Note: glideMs and glideEasing are no longer used (removed from UI).
  */
 export function isPresetActive(settings: any, mode: FlightMode): boolean {
     const preset = FLIGHT_MODE_PRESETS[mode];
@@ -122,7 +118,6 @@ export function isPresetActive(settings: any, mode: FlightMode): boolean {
         settings.pitchDegPerSec === preset.pitchDegPerSec &&
         settings.zoomUnitsPerSec === preset.zoomUnitsPerSec &&
         settings.smoothing === preset.smoothing &&
-        settings.glideMs === preset.glideMs &&
         settings.flySpeed === preset.flySpeed &&
         settings.flyCurve === preset.flyCurve &&
         settings.flyEasing === preset.flyEasing

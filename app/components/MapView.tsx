@@ -62,6 +62,8 @@ export default function MapView() {
         // Initialize Map with all sources (raster + tactical vector)
         map.current = new maplibregl.Map({
             container: mapContainer.current,
+            maxPitch: 85, // Override default 60° limit (MapLibre GL max is 85°)
+            minZoom: 1.5, // Prevent zooming out beyond globe view
             style: {
                 version: 8,
                 sources: {
@@ -962,6 +964,7 @@ export default function MapView() {
                         controllerRef.current?.updateProfile(profile);
                         setShowControllerModal(false);
                     }}
+                    mapRef={map.current || undefined}
                 />
             )}
 

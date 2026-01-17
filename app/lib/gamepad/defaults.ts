@@ -5,11 +5,15 @@ export const DEFAULT_PROFILE: ControllerProfile = {
     settings: {
         deadzone: 0.12,
         sensitivity: 1.25,
-        invertY: 'none',
+        leftStickInvertX: false,
+        leftStickInvertY: true,   // Flight controls - inverted by default
+        rightStickInvertX: false,
+        rightStickInvertY: false,
         panSpeedPxPerSec: 900,
         rotateDegPerSec: 120,
         pitchDegPerSec: 80,
         zoomUnitsPerSec: 1.2,
+        unlockMaxPitch: false,
     },
     bindings: {},
 };
@@ -17,10 +21,6 @@ export const DEFAULT_PROFILE: ControllerProfile = {
 export function applyTacticalPreset(): ControllerProfile {
     return {
         ...DEFAULT_PROFILE,
-        settings: {
-            ...DEFAULT_PROFILE.settings,
-            invertY: 'left', // Default to inverted (flight controls)
-        },
         bindings: {
             // RIGHT stick → pan (axes 2, 3)
             pan_x: { type: 'axis', index: 2, sign: 1 },

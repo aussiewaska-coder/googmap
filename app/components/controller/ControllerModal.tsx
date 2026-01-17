@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import maplibregl from 'maplibre-gl';
 import { ControllerProfile } from '@/app/lib/gamepad/types';
 import { loadSessionProfile, saveSessionProfile } from '@/app/lib/gamepad/storage';
 import { applyTacticalPreset, DEFAULT_PROFILE } from '@/app/lib/gamepad/defaults';
@@ -14,18 +15,36 @@ import BindModal from './BindModal';
 interface ControllerModalProps {
     onClose: () => void;
     onSave: (profile: ControllerProfile) => void;
+    mapRef?: maplibregl.Map;
 }
 
-export default function ControllerModal({ onClose, onSave }: ControllerModalProps) {
+export default function ControllerModal({ onClose, onSave, mapRef }: ControllerModalProps) {
     const [profile, setProfile] = useState<ControllerProfile>(() => {
         return loadSessionProfile() || applyTacticalPreset();
     });
     const [bindingAction, setBindingAction] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [currentPitch, setCurrentPitch] = useState(0);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Update current pitch from map
+    useEffect(() => {
+        if (!mapRef) return;
+        
+        const updatePitch = () => {
+            setCurrentPitch(mapRef.getPitch());
+        };
+        
+        updatePitch(); // Initial value
+        mapRef.on('pitch', updatePitch);
+        
+        return () => {
+            mapRef.off('pitch', updatePitch);
+        };
+    }, [mapRef]);
 
     const handleSaveClose = () => {
         saveSessionProfile(profile);
@@ -48,6 +67,15 @@ export default function ControllerModal({ onClose, onSave }: ControllerModalProp
         setProfile(resetProfile);
         // Immediately apply to MapController
         onSave(resetProfile);
+    };
+
+    const handlePitchChange = (pitch: number) => {
+        if (mapRef) {
+            // Rotate around a point 70% down the viewport (closer to camera position)
+            const container = mapRef.getContainer();
+            const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
+            mapRef.setPitch(pitch, { around: mapRef.unproject([centerPoint.x, centerPoint.y]) });
+        }
     };
 
     if (!mounted) return null;
@@ -75,14 +103,8 @@ export default function ControllerModal({ onClose, onSave }: ControllerModalProp
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                        {/* Left: Live Visualization + Settings */}
-                        <div className="space-y-6">
-                            <LiveVisualization />
-                            <SettingsPanel
-                                settings={profile.settings}
-                                onChange={(settings) => setProfile(prev => ({ ...prev, settings }))}
-                            />
-                        </div>
+                        {/* Left: Live Visualization */}
+                        <LiveVisualization />
 
                         {/* Right: Bindings */}
                         <BindingsList
@@ -94,6 +116,16 @@ export default function ControllerModal({ onClose, onSave }: ControllerModalProp
                                     bindings: { ...prev.bindings, [action]: undefined }
                                 }));
                             }}
+                        />
+                    </div>
+
+                    {/* Full Width: Settings Panel */}
+                    <div className="mt-8">
+                        <SettingsPanel
+                            settings={profile.settings}
+                            onChange={(settings) => setProfile(prev => ({ ...prev, settings }))}
+                            currentPitch={currentPitch}
+                            onPitchChange={handlePitchChange}
                         />
                     </div>
                 </div>

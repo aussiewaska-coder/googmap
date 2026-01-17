@@ -11,8 +11,9 @@ export class MapController {
     private animationFrameId: number | null = null;
     private lastTime = 0;
     private prevButtonState = new Map<string, boolean>();
-    private accumulators = { zoom: 0, bearing: 0, pitch: 0 };
-    private zoomVelocity = 0; // Smooth velocity for button zoom (ramps up/down)
+    private accumulators = { bearing: 0, pitch: 0 };
+    private zoomInSpeed = 0; // Tap-based speed: 0, 1, 2, 4, 8
+    private zoomOutSpeed = 0; // Tap-based speed: 0, 1, 2, 4, 8
 
     constructor(map: maplibregl.Map) {
         this.map = map;
@@ -25,6 +26,7 @@ export class MapController {
     }
 
     updateProfile(profile: ControllerProfile) {
+        // Debug: console.log('[MapController] Updated:', profile.settings.invertX, profile.settings.invertY);
         this.profile = profile;
     }
 
@@ -52,25 +54,22 @@ export class MapController {
         const { settings, bindings } = this.profile;
 
         // Read raw values
-        const panXRaw = readBindingValue(gp, bindings.pan_x);
-        const panYRaw = readBindingValue(gp, bindings.pan_y);
-        const rotRaw = readBindingValue(gp, bindings.rotate_x);
+        let panXRaw = readBindingValue(gp, bindings.pan_x);
+        let panYRaw = readBindingValue(gp, bindings.pan_y);
+        let rotRaw = readBindingValue(gp, bindings.rotate_x);
         let pitRaw = readBindingValue(gp, bindings.pitch_y);
-        const zoomRaw = readBindingValue(gp, bindings.zoom);
 
-        // Apply invertY
-        if (settings.invertY === 'both' ||
-            (settings.invertY === 'left' && bindings.pitch_y?.index === 1) ||
-            (settings.invertY === 'right' && bindings.pitch_y?.index === 3)) {
-            pitRaw = -pitRaw;
-        }
+        // Apply individual stick inversions
+        if (settings.leftStickInvertX) rotRaw = -rotRaw;
+        if (settings.leftStickInvertY) pitRaw = -pitRaw;
+        if (settings.rightStickInvertX) panXRaw = -panXRaw;
+        if (settings.rightStickInvertY) panYRaw = -panYRaw;
 
         // Apply deadzone + sensitivity with improved curve
         const panX = applyCurve(applyDeadzone(panXRaw, settings.deadzone), settings.sensitivity);
         const panY = applyCurve(applyDeadzone(panYRaw, settings.deadzone), settings.sensitivity);
         const rot = applyCurve(applyDeadzone(rotRaw, settings.deadzone), settings.sensitivity);
         const pit = applyCurve(applyDeadzone(pitRaw, settings.deadzone), settings.sensitivity);
-        const zoom = applyCurve(applyDeadzone(zoomRaw, settings.deadzone), settings.sensitivity);
 
         // Pan (using user-configured pan speed)
         if (panX || panY) {
@@ -89,30 +88,27 @@ export class MapController {
             }
         }
 
-        // Pitch (accumulator pattern with clamping)
+        // Pitch (accumulator pattern with clamping, rotates around lower viewport)
         if (pit) {
             this.accumulators.pitch += pit * settings.pitchDegPerSec * dt;
             if (Math.abs(this.accumulators.pitch) > 1) {
-                const newPitch = Math.max(0, Math.min(60, this.map.getPitch() + this.accumulators.pitch));
-                this.map.setPitch(newPitch);
+                const maxPitch = settings.unlockMaxPitch ? 85 : 60;
+                const newPitch = Math.max(0, Math.min(maxPitch, this.map.getPitch() + this.accumulators.pitch));
+                
+                // Rotate around a point 70% down the viewport (closer to camera position)
+                const container = this.map.getContainer();
+                const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
+                
+                this.map.setPitch(newPitch, { around: this.map.unproject([centerPoint.x, centerPoint.y]) });
                 this.accumulators.pitch = 0;
             }
         }
 
-        // Zoom
-        if (zoom) {
-            this.accumulators.zoom += zoom * settings.zoomUnitsPerSec * dt;
-            if (Math.abs(this.accumulators.zoom) > 0.1) {
-                this.map.setZoom(this.map.getZoom() + this.accumulators.zoom);
-                this.accumulators.zoom = 0;
-            }
-        }
-
         // Button actions
-        this.handleButtonActions(gp, bindings, dt);
+        this.handleButtonActions(gp, bindings, settings, dt);
     }
 
-    private handleButtonActions(gp: Gamepad, bindings: ControllerProfile['bindings'], dt: number) {
+    private handleButtonActions(gp: Gamepad, bindings: ControllerProfile['bindings'], settings: ControllerProfile['settings'], dt: number) {
         // Reset North
         if (bindings.reset_north?.type === 'button') {
             const down = !!gp.buttons[bindings.reset_north.index]?.pressed;
@@ -140,54 +136,67 @@ export class MapController {
             const down = !!gp.buttons[bindings.toggle_pitch.index]?.pressed;
             if (this.pressedOnce('toggle_pitch', down)) {
                 const currentPitch = this.map.getPitch();
-                const targetPitch = currentPitch < 30 ? 60 : 0;
-                this.map.easeTo({ pitch: targetPitch, duration: 300 });
+                const maxPitch = settings.unlockMaxPitch ? 85 : 60;
+                const targetPitch = currentPitch < 30 ? maxPitch : 0;
+                
+                // Rotate around a point 70% down the viewport (closer to camera position)
+                const container = this.map.getContainer();
+                const centerPoint = { x: container.offsetWidth / 2, y: container.offsetHeight * 0.7 };
+                
+                this.map.easeTo({ 
+                    pitch: targetPitch, 
+                    duration: 300,
+                    around: this.map.unproject([centerPoint.x, centerPoint.y])
+                });
             }
         }
 
-        // Smooth Digital-to-Analog Button Zoom with Ramping
-        let targetVelocity = 0;
-
-        // Check zoom in button
+        // Tap-to-speed zoom: 0 → 1 → 2 → 4 → 8 → 0
+        // Zoom In Button
         if (bindings.zoom_in?.type === 'button') {
             const button = gp.buttons[bindings.zoom_in.index];
-            if (button) {
-                const intensity = button.value ?? (button.pressed ? 1.0 : 0.0);
-                if (intensity > 0) {
-                    targetVelocity += intensity;
+            if (button && this.pressedOnce('zoom_in', button.pressed)) {
+                // If zooming out, tap zoom in to stop (cross-cancel)
+                if (this.zoomOutSpeed > 0) {
+                    this.zoomOutSpeed = 0;
+                    this.zoomInSpeed = 0;
+                } else {
+                    // Cycle through speeds: 0 → 1 → 2 → 4 → 8 → 0
+                    if (this.zoomInSpeed === 0) this.zoomInSpeed = 1;
+                    else if (this.zoomInSpeed === 1) this.zoomInSpeed = 2;
+                    else if (this.zoomInSpeed === 2) this.zoomInSpeed = 4;
+                    else if (this.zoomInSpeed === 4) this.zoomInSpeed = 8;
+                    else this.zoomInSpeed = 0;
                 }
             }
         }
 
-        // Check zoom out button
+        // Zoom Out Button
         if (bindings.zoom_out?.type === 'button') {
             const button = gp.buttons[bindings.zoom_out.index];
-            if (button) {
-                const intensity = button.value ?? (button.pressed ? 1.0 : 0.0);
-                if (intensity > 0) {
-                    targetVelocity -= intensity;
+            if (button && this.pressedOnce('zoom_out', button.pressed)) {
+                // If zooming in, tap zoom out to stop (cross-cancel)
+                if (this.zoomInSpeed > 0) {
+                    this.zoomInSpeed = 0;
+                    this.zoomOutSpeed = 0;
+                } else {
+                    // Cycle through speeds: 0 → 1 → 2 → 4 → 8 → 0
+                    if (this.zoomOutSpeed === 0) this.zoomOutSpeed = 1;
+                    else if (this.zoomOutSpeed === 1) this.zoomOutSpeed = 2;
+                    else if (this.zoomOutSpeed === 2) this.zoomOutSpeed = 4;
+                    else if (this.zoomOutSpeed === 4) this.zoomOutSpeed = 8;
+                    else this.zoomOutSpeed = 0;
                 }
             }
         }
 
-        // Smoothly ramp velocity toward target (ease-in/ease-out)
-        // Fast ramp up (0.15s), slower ramp down (0.25s) for natural feel
-        const rampSpeed = targetVelocity === 0 ? 4.0 : 6.5; // Slower decay, faster attack
-        const velocityDiff = targetVelocity - this.zoomVelocity;
-        
-        // Cubic easing for ultra-smooth acceleration
-        const easedDiff = velocityDiff > 0 
-            ? velocityDiff * velocityDiff * velocityDiff // Ease-in cubic for attack
-            : velocityDiff * Math.abs(velocityDiff) * Math.abs(velocityDiff); // Ease-out cubic for decay
-        
-        this.zoomVelocity += easedDiff * rampSpeed * dt;
-
-        // Apply smoothed zoom velocity
-        if (Math.abs(this.zoomVelocity) > 0.001) {
-            const zoomDelta = this.zoomVelocity * this.profile.settings.zoomUnitsPerSec * dt;
+        // Apply continuous zoom based on current speed (20% intensity)
+        if (this.zoomInSpeed > 0) {
+            const zoomDelta = this.zoomInSpeed * settings.zoomUnitsPerSec * dt * 0.2;
             this.map.setZoom(this.map.getZoom() + zoomDelta);
-        } else {
-            this.zoomVelocity = 0; // Clamp to zero when very small
+        } else if (this.zoomOutSpeed > 0) {
+            const zoomDelta = this.zoomOutSpeed * settings.zoomUnitsPerSec * dt * 0.2;
+            this.map.setZoom(this.map.getZoom() - zoomDelta);
         }
     }
 

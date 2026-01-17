@@ -133,6 +133,11 @@ export class MapController {
         for (const [commandKey, binding] of Object.entries(bindings)) {
             if (!binding || binding.type !== 'button') continue;
 
+            // Skip zoom buttons - they're handled by processZoom with special tap-to-speed logic
+            if (commandKey === 'MAP.ZOOM_IN' || commandKey === 'MAP.ZOOM_OUT') {
+                continue;
+            }
+
             const isPressed = !!gamepad.buttons[binding.index]?.pressed;
 
             // Menu commands use repeater, others use edge detection

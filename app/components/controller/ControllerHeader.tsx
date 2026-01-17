@@ -3,16 +3,16 @@
 import { useState, useEffect } from 'react';
 import { X, Gamepad2, Download, Upload, RefreshCw, Save } from 'lucide-react';
 import { getActiveGamepad } from '@/app/lib/gamepad/gamepad-reader';
-import { ControllerProfile } from '@/app/lib/gamepad/types';
+import { ControllerProfileV2 } from '@/app/lib/gamepad/types-v2';
 import { exportProfile, importProfile } from '@/app/lib/gamepad/storage';
 
 interface ControllerHeaderProps {
-    profile: ControllerProfile;
+    profile: ControllerProfileV2;
     onClose: () => void;
     onSaveClose: () => void;
     onPreset: () => void;
     onReset: () => void;
-    onImport: (profile: ControllerProfile) => void;
+    onImport: (profile: ControllerProfileV2) => void;
 }
 
 export default function ControllerHeader({ profile, onClose, onSaveClose, onPreset, onReset, onImport }: ControllerHeaderProps) {

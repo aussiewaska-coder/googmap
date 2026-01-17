@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Radio } from 'lucide-react';
-import { Binding, ACTION_DEFINITIONS } from '@/app/lib/gamepad/types';
+import { Binding, COMMAND_DEFINITIONS } from '@/app/lib/gamepad/types-v2';
 import { getActiveGamepad } from '@/app/lib/gamepad/gamepad-reader';
 import { createSnapshot, detectNewBinding } from '@/app/lib/gamepad/binding-capture';
 
@@ -16,7 +16,7 @@ export default function BindModal({ action, onCapture, onCancel }: BindModalProp
     const [listening, setListening] = useState(true);
     const [preview, setPreview] = useState<string>('Waiting for input...');
 
-    const actionDef = ACTION_DEFINITIONS.find(a => a.key === action);
+    const actionDef = COMMAND_DEFINITIONS.find(a => a.key === action);
 
     useEffect(() => {
         let frameId: number;

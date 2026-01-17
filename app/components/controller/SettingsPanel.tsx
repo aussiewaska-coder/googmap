@@ -1,11 +1,11 @@
 'use client';
 
-import { ControllerProfile, FlightMode, FlyEasing } from '@/app/lib/gamepad/types';
+import { ControllerProfileV2, FlightMode, FlyEasing } from '@/app/lib/gamepad/types-v2';
 import { applyFlightModePreset, detectFlightMode } from '@/app/lib/gamepad/flight-modes';
 
 interface SettingsPanelProps {
-    settings: ControllerProfile['settings'];
-    onChange: (settings: ControllerProfile['settings']) => void;
+    settings: ControllerProfileV2['settings'];
+    onChange: (settings: ControllerProfileV2['settings']) => void;
     currentPitch?: number;
     onPitchChange?: (pitch: number) => void;
 }

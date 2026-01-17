@@ -248,32 +248,58 @@ export class CommandDispatcher {
             console.log('🌍   Longitude:', longitude);
             console.log('🌍   Accuracy:', accuracy, 'meters');
 
+            // Log current map position for comparison
+            const currentCenter = context.map.getCenter();
+            const currentZoom = context.map.getZoom();
+            console.log('🌍 Current map position:');
+            console.log('🌍   Current center:', currentCenter);
+            console.log('🌍   Current zoom:', currentZoom);
+            console.log('🌍 Distance to target: calculating...');
+
+            const flyToOptions = {
+                center: [longitude, latitude] as [number, number],
+                zoom: 15,
+                duration: 1800,
+                curve: 1.4,
+                speed: 0.8,
+                easing: (t: number) => {
+                    // easeInOutCubic for smooth acceleration and deceleration
+                    return t < 0.5
+                        ? 4 * t * t * t
+                        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                },
+                essential: true,
+            };
+
             console.log('🌍 Calling map.flyTo with:');
             console.log('🌍   Center: [', longitude, ',', latitude, ']');
-            console.log('🌍   Zoom: 15');
-            console.log('🌍   Duration: 1800ms');
-            console.log('🌍   Curve: 1.4');
-            console.log('🌍   Essential: true');
+            console.log('🌍   Zoom:', flyToOptions.zoom);
+            console.log('🌍   Duration:', flyToOptions.duration, 'ms');
+            console.log('🌍   Speed:', flyToOptions.speed);
+            console.log('🌍   Curve:', flyToOptions.curve);
+            console.log('🌍   Essential:', flyToOptions.essential);
+            console.log('🌍   Easing: easeInOutCubic (custom function)');
 
             try {
-                context.map.flyTo({
-                    center: [longitude, latitude],
-                    zoom: 15,
-                    duration: 1800,
-                    curve: 1.4,
-                    easing: (t: number) => {
-                        // easeInOutCubic for smooth acceleration and deceleration
-                        return t < 0.5
-                            ? 4 * t * t * t
-                            : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                    },
-                    essential: true,
-                });
+                // Add listener for when flight completes
+                const onMoveEnd = () => {
+                    console.log('✅ [Geolocate] Flight completed! Map arrived at location');
+                    console.log('🌍 Final center:', context.map.getCenter());
+                    console.log('🌍 Final zoom:', context.map.getZoom());
+                    context.map.off('moveend', onMoveEnd);
+                };
+                context.map.once('moveend', onMoveEnd);
+
+                console.log('🌍 Initiating flyTo animation...');
+                context.map.flyTo(flyToOptions);
 
                 console.log('✅ [Geolocate] map.flyTo() called successfully');
-                console.log('🌍 Map should now be flying to your location...');
+                console.log('🌍 Map is now flying to your location...');
+                console.log('🌍 Animation should take', flyToOptions.duration, 'ms');
+                console.log('🌍 Waiting for moveend event...');
             } catch (flyError) {
                 console.error('❌ [Geolocate] map.flyTo() THREW ERROR:', flyError);
+                console.error('❌ Error details:', flyError);
             }
 
             console.log('🌍 ===== GEOLOCATE COMPLETE =====');

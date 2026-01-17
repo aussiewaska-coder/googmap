@@ -221,10 +221,19 @@ export class CommandDispatcher {
 
             console.log('[Command] Geolocate success:', latitude, longitude);
 
+            // Graceful eased flight to user location
             context.map.flyTo({
                 center: [longitude, latitude],
                 zoom: 15,
-                duration: 650,
+                duration: 1800,
+                curve: 1.4,
+                easing: (t: number) => {
+                    // easeInOutCubic for smooth acceleration and deceleration
+                    return t < 0.5
+                        ? 4 * t * t * t
+                        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                },
+                essential: true,
             });
         } catch (error) {
             console.error('[Command] Geolocate failed:', error);

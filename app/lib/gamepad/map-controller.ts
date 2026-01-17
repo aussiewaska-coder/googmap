@@ -47,6 +47,9 @@ export class MapController {
     // Drone gimbal state (for drone_gimbal mode)
     private droneHeading = 0; // degrees
 
+    // Debug flag to log bindings once at startup
+    private bindingsLogged = false;
+
     constructor(
         map: maplibregl.Map,
         commandContext: CommandContext,
@@ -62,6 +65,15 @@ export class MapController {
         this.profile = saved || applyTacticalPresetV2();
 
         console.log('[MapController] Initialized with v2 profile');
+        console.log('');
+        console.log('🎮 ===== CONTROLLER BINDINGS AT STARTUP =====');
+        console.log('🎮 GLOBAL bindings:', this.profile.bindings.global);
+        console.log('🎮 MAP bindings:', this.profile.bindings.map);
+        console.log('🎮 MENU bindings:', this.profile.bindings.menu);
+        console.log('🎮 DRONE bindings:', this.profile.bindings.drone_gimbal);
+        console.log('🎮 ===== END BINDINGS =====');
+        console.log('');
+
         this.start();
     }
 

@@ -93,6 +93,9 @@ export class CommandDispatcher {
      * Dispatch a command (public method for testing)
      */
     dispatch(command: Command, context: CommandContext, timestamp: number): void {
+        console.log('🔧 [Dispatcher] Command received:', command);
+        console.log('🔧 [Dispatcher] Timestamp:', timestamp);
+        console.log('🔧 [Dispatcher] Context has map?', !!context.map);
         this.executeCommand(command, context);
     }
 
@@ -197,18 +200,39 @@ export class CommandDispatcher {
      * GLOBAL.GEOLOCATE - Get user location and center map
      */
     private async geolocate(context: CommandContext): Promise<void> {
-        console.log('[Command] Executing GEOLOCATE');
+        console.log('');
+        console.log('🌍 ===== GEOLOCATE COMMAND TRIGGERED =====');
+        console.log('🌍 Navigator.geolocation available?', !!navigator.geolocation);
+        console.log('🌍 Map context:', context.map);
+        console.log('🌍 Map exists?', !!context.map);
 
         if (!navigator.geolocation) {
-            console.error('[Command] Geolocation not supported');
+            console.error('❌ [Geolocate] Geolocation NOT supported in this browser');
+            console.log('🌍 ===== GEOLOCATE ABORTED =====');
+            console.log('');
             return;
         }
+
+        if (!context.map) {
+            console.error('❌ [Geolocate] Map reference is NULL! Cannot fly to location!');
+            console.log('🌍 ===== GEOLOCATE ABORTED =====');
+            console.log('');
+            return;
+        }
+
+        console.log('🌍 Requesting current position from browser...');
 
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
-                    resolve,
-                    reject,
+                    (pos) => {
+                        console.log('✅ [Geolocate] Browser returned position:', pos);
+                        resolve(pos);
+                    },
+                    (err) => {
+                        console.error('❌ [Geolocate] Browser position request failed:', err);
+                        reject(err);
+                    },
                     {
                         enableHighAccuracy: true,
                         timeout: 8000,
@@ -217,26 +241,62 @@ export class CommandDispatcher {
                 );
             });
 
-            const { latitude, longitude } = position.coords;
+            const { latitude, longitude, accuracy } = position.coords;
 
-            console.log('[Command] Geolocate success:', latitude, longitude);
+            console.log('🌍 Position received:');
+            console.log('🌍   Latitude:', latitude);
+            console.log('🌍   Longitude:', longitude);
+            console.log('🌍   Accuracy:', accuracy, 'meters');
 
-            // Graceful eased flight to user location
-            context.map.flyTo({
-                center: [longitude, latitude],
-                zoom: 15,
-                duration: 1800,
-                curve: 1.4,
-                easing: (t: number) => {
-                    // easeInOutCubic for smooth acceleration and deceleration
-                    return t < 0.5
-                        ? 4 * t * t * t
-                        : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                },
-                essential: true,
-            });
+            console.log('🌍 Calling map.flyTo with:');
+            console.log('🌍   Center: [', longitude, ',', latitude, ']');
+            console.log('🌍   Zoom: 15');
+            console.log('🌍   Duration: 1800ms');
+            console.log('🌍   Curve: 1.4');
+            console.log('🌍   Essential: true');
+
+            try {
+                context.map.flyTo({
+                    center: [longitude, latitude],
+                    zoom: 15,
+                    duration: 1800,
+                    curve: 1.4,
+                    easing: (t: number) => {
+                        // easeInOutCubic for smooth acceleration and deceleration
+                        return t < 0.5
+                            ? 4 * t * t * t
+                            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    },
+                    essential: true,
+                });
+
+                console.log('✅ [Geolocate] map.flyTo() called successfully');
+                console.log('🌍 Map should now be flying to your location...');
+            } catch (flyError) {
+                console.error('❌ [Geolocate] map.flyTo() THREW ERROR:', flyError);
+            }
+
+            console.log('🌍 ===== GEOLOCATE COMPLETE =====');
+            console.log('');
         } catch (error) {
-            console.error('[Command] Geolocate failed:', error);
+            console.error('❌ [Geolocate] Failed to get position:', error);
+            if (error instanceof GeolocationPositionError) {
+                console.error('❌ Error code:', error.code);
+                console.error('❌ Error message:', error.message);
+                switch (error.code) {
+                    case 1:
+                        console.error('❌ PERMISSION_DENIED - User denied location access');
+                        break;
+                    case 2:
+                        console.error('❌ POSITION_UNAVAILABLE - Location unavailable');
+                        break;
+                    case 3:
+                        console.error('❌ TIMEOUT - Location request timed out');
+                        break;
+                }
+            }
+            console.log('🌍 ===== GEOLOCATE FAILED =====');
+            console.log('');
         }
     }
 

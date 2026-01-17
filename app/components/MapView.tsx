@@ -67,6 +67,7 @@ export default function MapView() {
     const [activeTab, setActiveTab] = useState<'main' | 'debug'>('main');
     const [debugLogs, setDebugLogs] = useState<Array<{timestamp: number; type: 'log' | 'error' | 'warn'; emoji: string; messages: any[]}>>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -739,13 +740,28 @@ export default function MapView() {
         }
     }, [debugLogs, activeTab]);
 
+    // Handle ESC key to close search modal
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isSearchOpen) {
+                setIsSearchOpen(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [isSearchOpen]);
+
     // Handle back button - prevent browser back, close UI elements instead
     useEffect(() => {
         const handleBackButton = (e: PopStateEvent) => {
             e.preventDefault();
 
             // Close modals and UIs in order of priority
-            if (showControllerModal) {
+            if (isSearchOpen) {
+                setIsSearchOpen(false);
+                window.history.pushState(null, '', window.location.href);
+            } else if (showControllerModal) {
                 setShowControllerModal(false);
                 window.history.pushState(null, '', window.location.href);
             } else if (isSidebarOpen) {
@@ -768,7 +784,7 @@ export default function MapView() {
         return () => {
             window.removeEventListener('popstate', handleBackButton);
         };
-    }, [showControllerModal, isSidebarOpen, activeTab]);
+    }, [isSearchOpen, showControllerModal, isSidebarOpen, activeTab]);
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-black font-sans antialiased">
@@ -841,45 +857,6 @@ export default function MapView() {
                         </div>
                     </div>
 
-                    {/* SEARCH BAR (Only in main tab) */}
-                    {activeTab === 'main' && (
-                        <div className="p-4 border-b border-white/5">
-                            <div className="relative group">
-                                <form onSubmit={handleSearch} className="relative">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-green-400 transition-colors" size={18} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search suburbs, addresses..."
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-12 pr-12 text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all placeholder:text-white/30"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                    {isSearching && (
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                                    )}
-                                </form>
-
-                                {searchResults.length > 0 && searchQuery && (
-                                    <div className="absolute top-full left-0 w-full mt-2 bg-zinc-900/95 border border-white/10 rounded-xl overflow-hidden z-[100] shadow-2xl backdrop-blur-md">
-                                        {searchResults.map((r, i) => (
-                                            <button
-                                                key={i}
-                                                className="w-full text-left p-3 hover:bg-white/5 border-b border-white/5 last:border-none transition group"
-                                                onClick={() => {
-                                                    flyToLocation([parseFloat(r.lon), parseFloat(r.lat)], 12, 'Search Result Click');
-                                                    setSearchResults([]);
-                                                    setSearchQuery('');
-                                                }}
-                                            >
-                                                <div className="text-white font-bold text-sm">{r.display_name.split(',')[0]}</div>
-                                                <div className="text-white/40 text-[10px] truncate">{r.display_name}</div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
 
                     {/* CONTENT AREA - Scrollable */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -954,7 +931,10 @@ export default function MapView() {
                                         {Object.entries(CITIES).map(([name, coords]) => (
                                             <button
                                                 key={name}
-                                                onClick={() => flyToLocation(coords as [number, number], 12, `City Button: ${name}`)}
+                                                onClick={() => {
+                                                    flyToLocation(coords as [number, number], 12, `City Button: ${name}`);
+                                                    setIsSidebarOpen(false);
+                                                }}
                                                 className="h-9 bg-white/5 hover:bg-blue-600/20 border border-white/10 hover:border-blue-500/30 text-white/80 hover:text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
                                             >
                                                 <div className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_4px_rgba(96,165,250,0.6)]" />
@@ -963,7 +943,10 @@ export default function MapView() {
                                         ))}
                                     </div>
                                     <button
-                                        onClick={() => flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
+                                        onClick={() => {
+                                            flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset');
+                                            setIsSidebarOpen(false);
+                                        }}
                                         className="w-full mt-2 h-10 bg-gradient-to-r from-red-600/20 to-orange-600/20 hover:from-red-600/30 hover:to-orange-600/30 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider shadow-[0_0_8px_rgba(239,68,68,0.2)]"
                                     >
                                         <Maximize size={13} /> GLOBAL VIEW RESET
@@ -1174,6 +1157,18 @@ export default function MapView() {
 
             {/* FLOATING ACTION BUTTONS - Bottom Right */}
             <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3">
+                {/* Search Button */}
+                <button
+                    onClick={() => setIsSearchOpen(true)}
+                    className="group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-blue-500/30 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95"
+                    title="Search Locations"
+                >
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <Search size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                        <span className="hidden md:inline">SEARCH</span>
+                    </div>
+                </button>
+
                 {/* Traffic Scan Button */}
                 <button
                     onClick={fetchWazeData}
@@ -1212,6 +1207,84 @@ export default function MapView() {
                 </button>
             </div>
 
+            {/* SPOTLIGHT SEARCH MODAL */}
+            {isSearchOpen && (
+                <div
+                    className="fixed inset-0 z-[20000] flex items-start justify-center pt-32 px-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+                    onClick={() => setIsSearchOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-2xl bg-gradient-to-b from-black/90 to-black/95 backdrop-blur-3xl border-2 border-green-500/30 rounded-2xl shadow-[0_0_60px_rgba(34,197,94,0.4)] overflow-hidden animate-slideDown"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Search Input */}
+                        <div className="relative p-6 border-b border-white/10">
+                            <form onSubmit={handleSearch} className="relative">
+                                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-green-400" size={28} strokeWidth={2.5} />
+                                <input
+                                    type="text"
+                                    placeholder="Search suburbs, addresses, landmarks..."
+                                    className="w-full bg-white/5 border-2 border-white/10 focus:border-green-500/50 rounded-xl py-5 pl-16 pr-16 text-white text-xl focus:outline-none focus:ring-2 focus:ring-green-500/30 transition-all placeholder:text-white/30"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    autoFocus
+                                />
+                                {isSearching && (
+                                    <div className="absolute right-5 top-1/2 -translate-y-1/2 h-7 w-7 border-3 border-green-500 border-t-transparent rounded-full animate-spin" />
+                                )}
+                            </form>
+                            <div className="mt-3 flex items-center gap-2 text-xs text-white/40">
+                                <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono">ESC</kbd>
+                                <span>to close</span>
+                            </div>
+                        </div>
+
+                        {/* Search Results */}
+                        {searchResults.length > 0 && searchQuery && (
+                            <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                                {searchResults.map((r, i) => (
+                                    <button
+                                        key={i}
+                                        className="w-full text-left p-5 hover:bg-green-500/10 border-b border-white/5 last:border-none transition-all group"
+                                        onClick={() => {
+                                            flyToLocation([parseFloat(r.lon), parseFloat(r.lat)], 12, 'Search Result Click');
+                                            setSearchResults([]);
+                                            setSearchQuery('');
+                                            setIsSearchOpen(false);
+                                        }}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <div className="mt-1 p-2 bg-green-500/20 rounded-lg border border-green-500/30 group-hover:bg-green-500/30 transition-colors">
+                                                <Navigation size={20} className="text-green-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-white font-bold text-lg mb-1">{r.display_name.split(',')[0]}</div>
+                                                <div className="text-white/50 text-sm truncate">{r.display_name}</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Empty State */}
+                        {!searchQuery && !searchResults.length && (
+                            <div className="p-10 text-center">
+                                <Search className="mx-auto mb-4 text-green-400/30" size={48} strokeWidth={1.5} />
+                                <div className="text-white/40 text-base">Start typing to search for locations...</div>
+                            </div>
+                        )}
+
+                        {/* No Results */}
+                        {searchQuery && searchResults.length === 0 && !isSearching && (
+                            <div className="p-10 text-center">
+                                <div className="text-white/40 text-base">No results found for "{searchQuery}"</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Controller Modal */}
             {showControllerModal && (
                 <ControllerModal
@@ -1233,7 +1306,7 @@ export default function MapView() {
                 .map-fade-in {
                     animation: fadeIn 2s ease-in;
                 }
-                
+
                 @keyframes fadeIn {
                     from {
                         opacity: 0;
@@ -1242,7 +1315,26 @@ export default function MapView() {
                         opacity: 1;
                     }
                 }
-                
+
+                .animate-fadeIn {
+                    animation: fadeIn 0.2s ease-out;
+                }
+
+                .animate-slideDown {
+                    animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-20px) scale(0.96);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
+                }
+
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 4px;
                 }

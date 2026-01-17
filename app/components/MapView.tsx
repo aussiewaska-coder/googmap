@@ -153,7 +153,23 @@ export default function MapView() {
             zoom: AUSTRALIA_CENTER.zoom,
             pitch: AUSTRALIA_CENTER.pitch,
             bearing: AUSTRALIA_CENTER.bearing,
+            // CRITICAL: Explicitly enable all touch/finger interactions
+            interactive: true,
+            dragPan: true,
+            scrollZoom: true,
+            boxZoom: true,
+            dragRotate: true,
+            touchZoomRotate: true,
+            touchPitch: true,
+            doubleClickZoom: true,
+            keyboard: true,
         });
+
+        console.log('🗺️ [MapView] Map initialized with ALL interactions enabled');
+        console.log('🗺️ DragPan:', map.current.dragPan.isEnabled());
+        console.log('🗺️ ScrollZoom:', map.current.scrollZoom.isEnabled());
+        console.log('🗺️ TouchZoomRotate:', map.current.touchZoomRotate.isEnabled());
+        console.log('🗺️ TouchPitch:', map.current.touchPitch.isEnabled());
 
         const m = map.current;
 
@@ -668,7 +684,7 @@ export default function MapView() {
             <div ref={mapContainer} className="absolute inset-0 w-full h-full map-fade-in" />
 
             {/* SIDEBAR OVERLAY */}
-            <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[400px]' : '-translate-x-full w-[400px]'}`}>
+            <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[400px]' : '-translate-x-full w-[400px] pointer-events-none'}`}>
                 <div className="h-full bg-black/80 backdrop-blur-xl border-r border-white/10 overflow-y-auto custom-scrollbar flex flex-col shadow-2xl">
 
                     {/* SIDEBAR HEADER: Search & Logo */}

@@ -117,16 +117,15 @@ export class MapController {
         }
 
         // Pitch (using smoothed velocity, instant application)
-        // No pivot point - rotates camera in place for first-person feel
+        // Use jumpTo for true first-person camera rotation (no easing/pivot point)
         if (this.velocities.pitch) {
             this.accumulators.pitch += this.velocities.pitch * dt;
             if (Math.abs(this.accumulators.pitch) > 1) {
                 const maxPitch = settings.unlockMaxPitch ? 85 : 60;
                 const newPitch = Math.max(0, Math.min(maxPitch, this.map.getPitch() + this.accumulators.pitch));
 
-                this.map.easeTo({
-                    pitch: newPitch,
-                    duration: 0
+                this.map.jumpTo({
+                    pitch: newPitch
                 });
                 this.accumulators.pitch = 0;
             }
@@ -172,9 +171,8 @@ export class MapController {
                 const maxPitch = settings.unlockMaxPitch ? 85 : 60;
                 const targetPitch = currentPitch < 30 ? maxPitch : 0;
 
-                this.map.easeTo({
-                    pitch: targetPitch,
-                    duration: 300
+                this.map.jumpTo({
+                    pitch: targetPitch
                 });
             }
         }

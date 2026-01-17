@@ -11,6 +11,7 @@
  */
 
 import { Command, CommandContext } from './types-v2';
+import maplibregl from 'maplibre-gl';
 
 // ============================================================================
 // Edge Detection (for one-shot commands)
@@ -297,6 +298,22 @@ export class CommandDispatcher {
                 console.log('🌍 Map is now flying to your location...');
                 console.log('🌍 Animation should take', flyToOptions.duration, 'ms');
                 console.log('🌍 Waiting for moveend event...');
+
+                // Create or update green marker (EXACT same functionality as UI Locate Me button)
+                console.log('🌍 Creating/updating green user location marker...');
+                if (!context.userMarker.current) {
+                    console.log('🌍 Creating NEW marker');
+                    const el = document.createElement('div');
+                    el.className = 'user-location-marker';
+                    context.userMarker.current = new maplibregl.Marker({ element: el })
+                        .setLngLat([longitude, latitude])
+                        .addTo(context.map);
+                    console.log('✅ [Geolocate] Green marker CREATED at location');
+                } else {
+                    console.log('🌍 Updating EXISTING marker position');
+                    context.userMarker.current.setLngLat([longitude, latitude]);
+                    console.log('✅ [Geolocate] Green marker UPDATED to new location');
+                }
             } catch (flyError) {
                 console.error('❌ [Geolocate] map.flyTo() THREW ERROR:', flyError);
                 console.error('❌ Error details:', flyError);

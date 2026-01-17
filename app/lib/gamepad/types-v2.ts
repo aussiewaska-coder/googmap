@@ -197,6 +197,7 @@ export const COMMAND_DEFINITIONS: readonly CommandDefinition[] = [
 
 export interface CommandContext {
     map: any; // maplibregl.Map (avoiding import)
+    userMarker: React.MutableRefObject<any>; // maplibregl.Marker ref
     ui: {
         openSettings: () => void;
         closeSettings: () => void;

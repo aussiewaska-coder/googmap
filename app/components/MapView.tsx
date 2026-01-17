@@ -26,8 +26,6 @@ import { loadSessionProfile } from '../lib/gamepad/storage';
 import { applyTacticalPresetV2 } from '../lib/gamepad/defaults-v2';
 import { ContextManager } from '../lib/gamepad/context-manager';
 import ControllerModal from './controller/ControllerModal';
-import DebugModal from './controller/DebugModal';
-import DebugLogModal from './DebugLogModal';
 
 import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
 import { prefetchTiles } from '../lib/service-worker';
@@ -53,7 +51,7 @@ export default function MapView() {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [wazeData, setWazeData] = useState<any>(null);
     const [isWazeLoading, setIsWazeLoading] = useState(false);
     const [isWazeEnabled, setIsWazeEnabled] = useState(false);
@@ -64,6 +62,9 @@ export default function MapView() {
     const [currentProfile, setCurrentProfile] = useState<ControllerProfileV2>(() => {
         return loadSessionProfile() || applyTacticalPresetV2();
     });
+    const [activeTab, setActiveTab] = useState<'main' | 'debug'>('main');
+    const [debugLogs, setDebugLogs] = useState<Array<{timestamp: number; type: 'log' | 'error' | 'warn'; emoji: string; messages: any[]}>>([]);
+    const logsEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
@@ -174,7 +175,6 @@ export default function MapView() {
         const m = map.current;
 
         // Custom control positioning handled by our sidebar or standard controls
-        m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
         m.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
         m.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
@@ -253,6 +253,7 @@ export default function MapView() {
         // Create CommandContext for dispatcher
         const commandContext: CommandContext = {
             map: map.current,
+            userMarker: userMarker, // Pass userMarker ref so geolocate can create green marker
             ui: {
                 openSettings: () => setIsSettingsOpen(true),
                 closeSettings: () => setIsSettingsOpen(false),
@@ -678,162 +679,307 @@ export default function MapView() {
         }
     };
 
+    // Cycle through map styles
+    const cycleMapStyle = () => {
+        const currentIndex = MAP_STYLES.findIndex(s => s.id === currentStyle);
+        const nextIndex = (currentIndex + 1) % MAP_STYLES.length;
+        setCurrentStyle(MAP_STYLES[nextIndex].id);
+    };
+
+    // Intercept console logs for debug panel
+    useEffect(() => {
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = (...args: any[]) => {
+            originalLog(...args);
+            const firstArg = args[0];
+            let emoji = '📝';
+            if (typeof firstArg === 'string') {
+                if (firstArg.includes('🔵')) emoji = '🔵';
+                else if (firstArg.includes('🟢')) emoji = '🟢';
+                else if (firstArg.includes('🟡')) emoji = '🟡';
+                else if (firstArg.includes('🟣')) emoji = '🟣';
+                else if (firstArg.includes('🌍')) emoji = '🌍';
+                else if (firstArg.includes('🔧')) emoji = '🔧';
+                else if (firstArg.includes('🎮')) emoji = '🎮';
+                else if (firstArg.includes('✅')) emoji = '✅';
+                else if (firstArg.includes('❌')) emoji = '❌';
+                else if (firstArg.includes('🗺️')) emoji = '🗺️';
+                else if (firstArg.includes('📍')) emoji = '📍';
+                else if (firstArg.includes('🛫')) emoji = '🛫';
+            }
+            setDebugLogs(prev => [...prev.slice(-99), { timestamp: Date.now(), type: 'log', emoji, messages: args }]);
+        };
+
+        console.error = (...args: any[]) => {
+            originalError(...args);
+            setDebugLogs(prev => [...prev.slice(-99), { timestamp: Date.now(), type: 'error', emoji: '❌', messages: args }]);
+        };
+
+        console.warn = (...args: any[]) => {
+            originalWarn(...args);
+            setDebugLogs(prev => [...prev.slice(-99), { timestamp: Date.now(), type: 'warn', emoji: '⚠️', messages: args }]);
+        };
+
+        return () => {
+            console.log = originalLog;
+            console.error = originalError;
+            console.warn = originalWarn;
+        };
+    }, []);
+
+    // Auto-scroll debug logs
+    useEffect(() => {
+        if (activeTab === 'debug' && logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [debugLogs, activeTab]);
+
     return (
         <div className="relative w-full h-screen overflow-hidden bg-black font-sans antialiased">
             {/* Map Container */}
             <div ref={mapContainer} className="absolute inset-0 w-full h-full map-fade-in" />
 
             {/* SIDEBAR OVERLAY */}
-            <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'translate-x-0 w-[400px]' : '-translate-x-full w-[400px] pointer-events-none'}`}>
-                <div className="h-full bg-black/80 backdrop-blur-xl border-r border-white/10 overflow-y-auto custom-scrollbar flex flex-col shadow-2xl">
+            <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'} w-full md:w-[400px]`}>
+                <div className="h-full bg-gradient-to-b from-black/95 via-black/90 to-black/95 backdrop-blur-2xl border-r border-blue-500/20 overflow-hidden flex flex-col shadow-[0_0_50px_rgba(59,130,246,0.3)]">
 
-                    {/* SIDEBAR HEADER: Search & Logo */}
-                    <div className="p-6 border-b border-white/10 space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h1 className="text-white font-black text-2xl tracking-tighter italic flex items-center gap-2">
-                                <Activity className="text-blue-500" size={28} />
-                                AUS.MAPPING
+                    {/* SIDEBAR HEADER */}
+                    <div className="p-4 border-b border-white/5 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-blue-900/10">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-white font-black text-xl tracking-tight flex items-center gap-2">
+                                <Activity className="text-blue-400 animate-pulse" size={24} />
+                                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                    AUS.MAPPING
+                                </span>
                             </h1>
-                            <button
-                                onClick={() => setIsSidebarOpen(false)}
-                                className="text-white/40 hover:text-white transition-colors"
-                            >
-                                <ChevronLeft size={24} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setShowControllerModal(true)}
+                                    className="p-2 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 rounded-lg text-purple-400 hover:text-purple-300 transition-all shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                    title="Controller Settings"
+                                >
+                                    <Gamepad2 size={18} />
+                                </button>
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                >
+                                    <ChevronLeft size={18} />
+                                </button>
+                            </div>
                         </div>
 
-                        {/* SEARCH COMPONENT */}
-                        <div className="relative group">
-                            <form onSubmit={handleSearch} className="relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" size={20} />
-                                <input
-                                    type="text"
-                                    placeholder="Search location..."
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-white/20"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                                {isSearching && (
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                )}
-                            </form>
-
-                            {searchResults.length > 0 && searchQuery && (
-                                <div className="absolute top-full left-0 w-full mt-2 bg-zinc-900/95 border border-white/10 rounded-2xl overflow-hidden z-[100] shadow-2xl backdrop-blur-md">
-                                    {searchResults.map((r, i) => (
-                                        <button
-                                            key={i}
-                                            className="w-full text-left p-4 hover:bg-white/5 border-b border-white/5 last:border-none transition group"
-                                            onClick={() => {
-                                                flyToLocation([parseFloat(r.lon), parseFloat(r.lat)], 12, 'Search Result Click');
-                                                setSearchResults([]);
-                                                setSearchQuery('');
-                                            }}
-                                        >
-                                            <div className="text-white font-bold text-sm tracking-tight">{r.display_name.split(',')[0]}</div>
-                                            <div className="text-white/40 text-[10px] truncate group-hover:text-white/60">{r.display_name}</div>
-                                        </button>
-                                    ))}
+                        {/* TAB SWITCHER */}
+                        <div className="flex gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
+                            <button
+                                onClick={() => setActiveTab('main')}
+                                className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                                    activeTab === 'main'
+                                        ? 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]'
+                                        : 'text-white/40 hover:text-white/60'
+                                }`}
+                            >
+                                <div className="flex items-center justify-center gap-1.5">
+                                    <MapIcon size={14} />
+                                    DASHBOARD
                                 </div>
-                            )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('debug')}
+                                className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                                    activeTab === 'debug'
+                                        ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]'
+                                        : 'text-white/40 hover:text-white/60'
+                                }`}
+                            >
+                                <div className="flex items-center justify-center gap-1.5">
+                                    <Activity size={14} />
+                                    DEBUG LOGS
+                                    {debugLogs.length > 0 && (
+                                        <span className="bg-purple-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">
+                                            {debugLogs.length}
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
                         </div>
                     </div>
 
-                    {/* SIDBAR BODY: Sections */}
-                    <div className="flex-1 p-6 space-y-8">
+                    {/* SEARCH BAR (Only in main tab) */}
+                    {activeTab === 'main' && (
+                        <div className="p-4 border-b border-white/5">
+                            <div className="relative group">
+                                <form onSubmit={handleSearch} className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search location..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-white/20"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                    {isSearching && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    )}
+                                </form>
 
-                        {/* FLIGHT DECK: Predefined Cities */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Navigation size={12} /> Flight Deck
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {Object.entries(CITIES).map(([name, coords]) => (
-                                    <button
-                                        key={name}
-                                        onClick={() => flyToLocation(coords as [number, number], 12, `City Button: ${name}`)}
-                                        className="h-10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-[11px] font-bold rounded-lg border border-white/5 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                        {name}
-                                    </button>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
-                                className="w-full mt-4 h-12 bg-red-600/20 hover:bg-red-600/30 text-red-500 hover:text-red-400 text-xs font-black rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
-                            >
-                                <Maximize size={14} /> Global View Reset
-                            </button>
-                        </section>
-
-                        {/* MAP STYLES: Selector */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <MapIcon size={12} /> Map Style
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {MAP_STYLES.map((style) => (
-                                    <button
-                                        key={style.id}
-                                        onClick={() => setCurrentStyle(style.id)}
-                                        className={`p-3 rounded-xl border transition-all text-left ${
-                                            currentStyle === style.id
-                                                ? 'bg-blue-600 border-blue-500 text-white'
-                                                : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:border-white/20'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-lg">{style.emoji}</span>
-                                            <span className="text-xs font-bold">{style.name}</span>
-                                        </div>
-                                        <div className="text-[9px] text-white/50 leading-tight">
-                                            {style.description}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* TERRAIN EFFECTS: Single Toggle + Slider */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Mountain size={12} /> Terrain Effects
-                            </div>
-                            <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
-                                {/* Single Toggle for 3D Terrain + Hillshade */}
-                                <div className="flex items-center justify-between p-4 px-5">
-                                    <div className="flex-1">
-                                        <div className="text-white/80 text-xs font-bold flex items-center gap-2">
-                                            <span className="text-blue-500"><Mountain size={14} /></span>
-                                            3D Terrain
-                                        </div>
-                                        <div className="text-white/40 text-[9px] mt-0.5">Elevation + hillshade effects</div>
+                                {searchResults.length > 0 && searchQuery && (
+                                    <div className="absolute top-full left-0 w-full mt-2 bg-zinc-900/95 border border-white/10 rounded-xl overflow-hidden z-[100] shadow-2xl backdrop-blur-md">
+                                        {searchResults.map((r, i) => (
+                                            <button
+                                                key={i}
+                                                className="w-full text-left p-3 hover:bg-white/5 border-b border-white/5 last:border-none transition group"
+                                                onClick={() => {
+                                                    flyToLocation([parseFloat(r.lon), parseFloat(r.lat)], 12, 'Search Result Click');
+                                                    setSearchResults([]);
+                                                    setSearchQuery('');
+                                                }}
+                                            >
+                                                <div className="text-white font-bold text-sm">{r.display_name.split(',')[0]}</div>
+                                                <div className="text-white/40 text-[10px] truncate">{r.display_name}</div>
+                                            </button>
+                                        ))}
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={terrainEnabled}
-                                            onChange={(e) => setTerrainEnabled(e.target.checked)}
-                                        />
-                                        <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
-                                {/* Terrain Intensity Slider */}
+                    {/* CONTENT AREA - Scrollable */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+
+                        {/* MAIN DASHBOARD TAB */}
+                        {activeTab === 'main' && (
+                            <div className="p-4 space-y-4">
+                                {/* QUICK ACTIONS */}
+                                <section>
+                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                        QUICK ACTIONS
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={cycleMapStyle}
+                                            className="h-12 bg-gradient-to-br from-blue-600/20 to-blue-800/20 hover:from-blue-600/30 hover:to-blue-800/30 border border-blue-500/30 rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(37,99,235,0.2)] hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+                                        >
+                                            <MapIcon size={16} className="text-blue-400" />
+                                            <div className="flex flex-col items-start">
+                                                <div className="text-[9px] text-blue-400">CYCLE MAP</div>
+                                                <div className="text-[10px] text-white/80">{MAP_STYLES.find(s => s.id === currentStyle)?.emoji} {MAP_STYLES.find(s => s.id === currentStyle)?.name}</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => setTerrainEnabled(!terrainEnabled)}
+                                            className={`h-12 bg-gradient-to-br ${terrainEnabled ? 'from-green-600/20 to-green-800/20' : 'from-white/5 to-white/10'} border ${terrainEnabled ? 'border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]' : 'border-white/10'} rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-105`}
+                                        >
+                                            <Mountain size={16} className={terrainEnabled ? 'text-green-400' : 'text-white/40'} />
+                                            <div className="flex flex-col items-start">
+                                                <div className={`text-[9px] ${terrainEnabled ? 'text-green-400' : 'text-white/40'}`}>TERRAIN</div>
+                                                <div className="text-[10px]">{terrainEnabled ? 'ON' : 'OFF'}</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={fetchWazeData}
+                                            disabled={isWazeLoading}
+                                            className={`h-12 bg-gradient-to-br ${isWazeEnabled ? 'from-orange-600/20 to-orange-800/20' : 'from-white/5 to-white/10'} border ${isWazeEnabled ? 'border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'border-white/10'} rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-105`}
+                                        >
+                                            {isWazeLoading ? (
+                                                <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <AlertTriangle size={16} className={isWazeEnabled ? 'text-orange-400' : 'text-white/40'} />
+                                                    <div className="flex flex-col items-start">
+                                                        <div className={`text-[9px] ${isWazeEnabled ? 'text-orange-400' : 'text-white/40'}`}>TRAFFIC</div>
+                                                        <div className="text-[10px]">{isWazeEnabled ? 'SCAN' : 'OFF'}</div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={handleLocateMe}
+                                            className="h-12 bg-gradient-to-br from-purple-600/20 to-purple-800/20 hover:from-purple-600/30 hover:to-purple-800/30 border border-purple-500/30 rounded-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(147,51,234,0.2)] hover:shadow-[0_0_15px_rgba(147,51,234,0.4)]"
+                                        >
+                                            <Locate size={16} className="text-purple-400" />
+                                            <div className="flex flex-col items-start">
+                                                <div className="text-[9px] text-purple-400">LOCATE</div>
+                                                <div className="text-[10px]">ME</div>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </section>
+
+                                {/* FLIGHT DECK: Predefined Cities */}
+                                <section>
+                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                        FLIGHT DECK
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {Object.entries(CITIES).map(([name, coords]) => (
+                                            <button
+                                                key={name}
+                                                onClick={() => flyToLocation(coords as [number, number], 12, `City Button: ${name}`)}
+                                                className="h-9 bg-white/5 hover:bg-blue-600/20 border border-white/10 hover:border-blue-500/30 text-white/80 hover:text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
+                                            >
+                                                <div className="w-1 h-1 rounded-full bg-blue-400 shadow-[0_0_4px_rgba(96,165,250,0.6)]" />
+                                                {name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Global View Reset')}
+                                        className="w-full mt-2 h-10 bg-gradient-to-r from-red-600/20 to-orange-600/20 hover:from-red-600/30 hover:to-orange-600/30 border border-red-500/30 text-red-400 hover:text-red-300 text-[10px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                                    >
+                                        <Maximize size={13} /> GLOBAL VIEW RESET
+                                    </button>
+                                </section>
+
+                                {/* MAP STYLES: Selector */}
+                                <section>
+                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                        MAP STYLES
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {MAP_STYLES.map((style) => (
+                                            <button
+                                                key={style.id}
+                                                onClick={() => setCurrentStyle(style.id)}
+                                                className={`p-2.5 rounded-lg border transition-all text-left ${
+                                                    currentStyle === style.id
+                                                        ? 'bg-blue-600/30 border-blue-500/50 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+                                                        : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:border-white/20'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <span className="text-base">{style.emoji}</span>
+                                                    <span className="text-[10px] font-bold">{style.name}</span>
+                                                </div>
+                                                <div className="text-[8px] text-white/40 leading-tight">
+                                                    {style.description}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* TERRAIN INTENSITY */}
                                 {terrainEnabled && (
-                                    <div className="p-4 px-5 bg-white/[0.02]">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div>
-                                                <div className="text-white/80 text-xs font-bold">Terrain Intensity</div>
-                                                <div className="text-white/40 text-[9px] mt-0.5">Elevation exaggeration</div>
-                                            </div>
-                                            <div className="text-blue-400 font-mono text-xs font-bold">
-                                                {terrainExaggeration.toFixed(1)}×
-                                            </div>
+                                    <section>
+                                        <div className="text-green-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
+                                            TERRAIN INTENSITY
                                         </div>
-                                        <div className="relative">
+                                        <div className="bg-white/5 border border-green-500/20 rounded-lg p-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-white/80 text-[10px] font-bold">Exaggeration</span>
+                                                <span className="text-green-400 font-mono text-xs font-bold">
+                                                    {terrainExaggeration.toFixed(1)}×
+                                                </span>
+                                            </div>
                                             <input
                                                 type="range"
                                                 min="0.5"
@@ -841,227 +987,157 @@ export default function MapView() {
                                                 step="0.1"
                                                 value={terrainExaggeration}
                                                 onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-green-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(74,222,128,0.6)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-green-500 [&::-moz-range-thumb]:border-0"
                                             />
+                                            <div className="flex justify-between text-[7px] text-white/30 mt-1 font-mono">
+                                                <span>0.5×</span>
+                                                <span>1.5×</span>
+                                                <span>3.0×</span>
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between text-[8px] text-white/30 mt-1.5 font-mono">
-                                            <span>0.5× Subtle</span>
-                                            <span>1.5× Normal</span>
-                                            <span>3.0× Dramatic</span>
-                                        </div>
-                                    </div>
+                                    </section>
                                 )}
-                            </div>
-                        </section>
 
-                        {/* WAZE TRAFFIC: Alerts & Jams */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Radio size={12} className={isWazeLoading ? 'animate-pulse' : ''} /> Waze Traffic System
-                            </div>
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${isWazeEnabled ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/20'}`}>
-                                            <AlertTriangle size={18} />
-                                        </div>
-                                        <div>
-                                            <div className="text-white text-xs font-bold">Live Traffic Alerts</div>
-                                            <div className="text-white/40 text-[10px]">Real-time community reports</div>
-                                        </div>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only peer"
-                                            checked={isWazeEnabled}
-                                            onChange={e => setIsWazeEnabled(e.target.checked)}
-                                        />
-                                        <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
-
+                                {/* TRAFFIC ALERTS - Compact */}
                                 {isWazeEnabled && (
-                                    <div className="space-y-3 pt-2 border-t border-white/5">
-                                        {/* Time Horizon Selector */}
-                                        <div>
-                                            <div className="text-white/60 text-[10px] font-bold uppercase mb-2">Time Horizon</div>
-                                            <div className="grid grid-cols-3 gap-1.5">
+                                    <section>
+                                        <div className="text-orange-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shadow-[0_0_6px_rgba(251,146,60,0.8)]" />
+                                            TRAFFIC ALERTS
+                                        </div>
+                                        <div className="bg-white/5 border border-orange-500/20 rounded-lg p-3 space-y-3">
+                                            <div className="grid grid-cols-3 gap-1">
                                                 {[
                                                     { label: '15m', value: 0.25 },
-                                                    { label: '30m', value: 0.5 },
                                                     { label: '1h', value: 1 },
-                                                    { label: '2h', value: 2 },
                                                     { label: '6h', value: 6 },
                                                     { label: '12h', value: 12 },
                                                     { label: '24h', value: 24 },
                                                     { label: '48h', value: 48 },
-                                                    { label: '72h', value: 72 },
                                                 ].map((option) => (
                                                     <button
                                                         key={option.value}
                                                         onClick={() => setTimeHorizon(option.value)}
-                                                        className={`h-8 text-[10px] font-bold rounded-lg transition-all ${
+                                                        className={`h-7 text-[9px] font-bold rounded transition-all ${
                                                             timeHorizon === option.value
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                                                ? 'bg-orange-600 text-white shadow-[0_0_8px_rgba(249,115,22,0.4)]'
+                                                                : 'bg-white/5 text-white/60 hover:bg-white/10'
                                                         }`}
                                                     >
                                                         {option.label}
                                                     </button>
                                                 ))}
                                             </div>
-                                        </div>
-
-                                        {/* Step Controls */}
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    const options = [0.25, 0.5, 1, 2, 6, 12, 24, 48, 72];
-                                                    const currentIndex = options.indexOf(timeHorizon);
-                                                    if (currentIndex > 0) {
-                                                        setTimeHorizon(options[currentIndex - 1]);
-                                                    }
-                                                }}
-                                                disabled={timeHorizon === 0.25}
-                                                className="flex-1 h-8 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white text-[10px] font-bold rounded-lg transition-all"
-                                            >
-                                                ← Down
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    const options = [0.25, 0.5, 1, 2, 6, 12, 24, 48, 72];
-                                                    const currentIndex = options.indexOf(timeHorizon);
-                                                    if (currentIndex < options.length - 1) {
-                                                        setTimeHorizon(options[currentIndex + 1]);
-                                                    }
-                                                }}
-                                                disabled={timeHorizon === 72}
-                                                className="flex-1 h-8 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white text-[10px] font-bold rounded-lg transition-all"
-                                            >
-                                                Up →
-                                            </button>
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={fetchDatabaseAlerts}
-                                                disabled={isWazeLoading}
-                                                className="flex-1 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
-                                            >
-                                                {isWazeLoading ? (
-                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                ) : (
-                                                    <>Refresh</>
-                                                )}
-                                            </button>
-                                            <button
-                                                onClick={fetchWazeData}
-                                                disabled={isWazeLoading}
-                                                className="flex-1 h-10 bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
-                                            >
-                                                {isWazeLoading ? (
-                                                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                ) : (
-                                                    <>Scan</>
-                                                )}
-                                            </button>
-                                        </div>
-
-                                        {/* Stats Display */}
-                                        {wazeData && (
-                                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 text-center">
-                                                <div className="text-white/40 text-[8px] uppercase font-bold mb-1">
-                                                    Alerts ({timeHorizon >= 1 ? `${timeHorizon}h` : `${timeHorizon * 60}m`})
+                                            {wazeData && (
+                                                <div className="bg-orange-900/20 p-2 rounded border border-orange-500/20 text-center">
+                                                    <div className="text-orange-400 text-[8px] uppercase font-bold mb-0.5">
+                                                        Active Alerts
+                                                    </div>
+                                                    <div className="text-white font-black text-lg">{wazeData.count ?? 0}</div>
                                                 </div>
-                                                <div className="text-white font-black text-xl">{wazeData.count ?? 0}</div>
-                                            </div>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    </section>
                                 )}
-                            </div>
-                        </section>
 
-                        {/* SYSTEM DIAGNOSTICS: Coordinates */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Activity size={12} /> System Diagnostics
+                                {/* SYSTEM STATUS */}
+                                <section>
+                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                        SYSTEM STATUS
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-white/5 border border-white/10 rounded-lg p-2">
+                                            <div className="text-[8px] text-white/40 uppercase font-bold mb-1">Lat</div>
+                                            <div className="text-white font-mono text-[10px] tabular-nums">{viewState.lat.toFixed(4)}°</div>
+                                        </div>
+                                        <div className="bg-white/5 border border-white/10 rounded-lg p-2">
+                                            <div className="text-[8px] text-white/40 uppercase font-bold mb-1">Lng</div>
+                                            <div className="text-white font-mono text-[10px] tabular-nums">{viewState.lng.toFixed(4)}°</div>
+                                        </div>
+                                        <div className="bg-white/5 border border-blue-500/20 rounded-lg p-2">
+                                            <div className="text-[8px] text-blue-400 uppercase font-bold mb-1">Zoom</div>
+                                            <div className="text-blue-400 font-mono text-[10px] font-bold tabular-nums">{viewState.zoom.toFixed(2)}</div>
+                                        </div>
+                                        <div className="bg-white/5 border border-white/10 rounded-lg p-2">
+                                            <div className="text-[8px] text-white/40 uppercase font-bold mb-1">Pitch</div>
+                                            <div className="text-white font-mono text-[10px] tabular-nums">{viewState.pitch.toFixed(0)}°</div>
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
-                            <div className="bg-zinc-900/50 p-5 rounded-2xl border border-white/5 space-y-3 font-mono">
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Latitude</span>
-                                    <span className="text-white font-bold tabular-nums">{viewState.lat.toFixed(6)}°</span>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Longitude</span>
-                                    <span className="text-white font-bold tabular-nums">{viewState.lng.toFixed(6)}°</span>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Altitude</span>
-                                    <span className="text-blue-400 font-black tabular-nums">{viewState.zoom} LVEL</span>
-                                </div>
-                            </div>
-                        </section>
+                        )}
 
-                        {/* CAMERA DEBUG: View State */}
-                        <section>
-                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Settings size={12} /> Camera Debug
+                        {/* DEBUG LOGS TAB */}
+                        {activeTab === 'debug' && (
+                            <div className="flex-1 flex flex-col">
+                                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                                    <div className="text-white/60 text-xs font-bold">
+                                        {debugLogs.length} log entries
+                                    </div>
+                                    <button
+                                        onClick={() => setDebugLogs([])}
+                                        className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 text-[10px] font-bold rounded transition-all"
+                                    >
+                                        CLEAR
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1 font-mono text-xs">
+                                    {debugLogs.length === 0 ? (
+                                        <div className="text-white/40 text-center py-8 text-[11px]">
+                                            No logs yet. Interact with the map to see debug output.
+                                        </div>
+                                    ) : (
+                                        debugLogs.map((log, i) => (
+                                            <div
+                                                key={i}
+                                                className={`p-2 rounded ${
+                                                    log.type === 'error'
+                                                        ? 'bg-red-900/20 border border-red-500/30'
+                                                        : log.type === 'warn'
+                                                        ? 'bg-yellow-900/20 border border-yellow-500/30'
+                                                        : 'bg-white/5 border border-white/5'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-2">
+                                                    <span className="text-sm flex-shrink-0">{log.emoji}</span>
+                                                    <div className="flex-1 min-w-0 space-y-0.5">
+                                                        {log.messages.map((msg, j) => (
+                                                            <div
+                                                                key={j}
+                                                                className={`${
+                                                                    log.type === 'error'
+                                                                        ? 'text-red-300'
+                                                                        : log.type === 'warn'
+                                                                        ? 'text-yellow-300'
+                                                                        : 'text-white/90'
+                                                                } break-words text-[10px] leading-relaxed`}
+                                                            >
+                                                                {typeof msg === 'string' ? msg : JSON.stringify(msg)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                    <div ref={logsEndRef} />
+                                </div>
                             </div>
-                            <div className="bg-zinc-900/50 p-5 rounded-2xl border border-white/5 space-y-3 font-mono">
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Zoom</span>
-                                    <span className="text-blue-400 font-bold tabular-nums">{viewState.zoom.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Pitch</span>
-                                    <span className="text-green-400 font-bold tabular-nums">{viewState.pitch.toFixed(0)}°</span>
-                                </div>
-                                <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-white/40 uppercase">Bearing</span>
-                                    <span className="text-yellow-400 font-bold tabular-nums">{viewState.bearing.toFixed(0)}°</span>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* SIDEBAR FOOTER */}
-                    <div className="p-6 pt-0 opacity-40 hover:opacity-100 transition-opacity">
-                        <div className="text-[10px] text-white/40 italic font-mono uppercase tracking-tighter">
-                            // SECURE.ENDPOINT:0391-AUS
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* SIDEBAR OPEN BUTTON (When closed) */}
+            {/* SIDEBAR TOGGLE BUTTON (When closed) */}
             {!isSidebarOpen && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-6 left-6 z-[10001] bg-black/80 backdrop-blur-lg border border-white/10 p-3 rounded-2xl text-white shadow-2xl hover:bg-blue-600 transition-all group scale-100 active:scale-95"
+                    className="fixed top-6 left-6 z-[10001] bg-gradient-to-br from-blue-600/30 to-purple-600/30 backdrop-blur-xl border border-blue-500/30 p-3 rounded-xl text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:scale-105 transition-all group"
                 >
-                    <ChevronRight size={20} className="group-hover:translate-x-0.5 transition-transform" />
+                    <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
                 </button>
             )}
-
-            {/* QUICK ACTIONS OVERLAY (Bottom Right for map tools) */}
-            <div className="fixed bottom-8 right-8 z-[9000] flex flex-col gap-2">
-                <button
-                    onClick={() => setShowControllerModal(true)}
-                    className="h-12 w-12 bg-black/80 backdrop-blur-lg border border-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white hover:bg-blue-600 transition-all shadow-xl group"
-                    title="Controller Mapping"
-                >
-                    <Gamepad2 size={20} className="group-hover:scale-110 transition-transform" />
-                </button>
-                <button
-                    onClick={handleLocateMe}
-                    className="h-12 w-12 bg-black/80 backdrop-blur-lg border border-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white hover:bg-blue-600 transition-all shadow-xl group"
-                    title="Find My Location"
-                >
-                    <Locate size={20} className="group-hover:scale-110 transition-transform" />
-                </button>
-            </div>
 
             {/* Controller Modal */}
             {showControllerModal && (
@@ -1079,15 +1155,6 @@ export default function MapView() {
                     mapRef={map.current || undefined}
                 />
             )}
-
-            {/* Debug Modal - Always available */}
-            <DebugModal
-                profile={currentProfile}
-                mapRef={map.current || undefined}
-            />
-
-            {/* Debug Log Modal - Right side console logs */}
-            <DebugLogModal />
 
             <style jsx global>{`
                 .map-fade-in {

@@ -14,11 +14,11 @@ export interface FlightModePreset {
 
 export const FLIGHT_MODE_PRESETS: Record<FlightMode, FlightModePreset> = {
     joyflight: {
-        panSpeedPxPerSec: 650,
-        rotateDegPerSec: 75,
-        pitchDegPerSec: 45,
-        zoomUnitsPerSec: 0.8,
-        zoomIntensity: 0.2,
+        panSpeedPxPerSec: 200,
+        rotateDegPerSec: 50,
+        pitchDegPerSec: 40,
+        zoomUnitsPerSec: 1.5,
+        zoomIntensity: 0.5,
         smoothing: 0.18,
         flySpeed: 0.9,
         flyCurve: 1.2,

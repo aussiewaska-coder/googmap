@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { db } from '@/app/lib/db';
+import { policeReports, trafficAlerts } from '@/app/lib/schema';
 
 const EnvSchema = z.object({
     OPENWEBNINJA_API_KEY: z.string().min(10).optional(),
@@ -62,6 +64,92 @@ export async function POST(req: NextRequest) {
         const raw = await owResp.json();
         const alerts = Array.isArray(raw.data?.alerts) ? raw.data.alerts : [];
         const jams = Array.isArray(raw.data?.jams) ? raw.data.jams : [];
+
+        // Filter for police-related alerts
+        const policeAlerts = alerts.filter((a: any) => {
+            const type = String(a.type ?? '').toUpperCase();
+            return type === 'POLICE' || type.includes('POLICE');
+        });
+
+        // Upsert police reports to database
+        if (policeAlerts.length > 0) {
+            try {
+                const reportsToInsert = policeAlerts.map((a: any) => ({
+                    alertId: String(a.alert_id ?? a.id),
+                    type: String(a.type ?? 'POLICE').toUpperCase(),
+                    subtype: a.subtype ?? null,
+                    latitude: Number(a.latitude ?? a.lat) || null,
+                    longitude: Number(a.longitude ?? a.lon) || null,
+                    street: a.street ?? null,
+                    city: a.city ?? null,
+                    alertReliability: a.alert_reliability ?? a.reliability ?? null,
+                    publishDatetimeUtc: a.publish_datetime_utc ? new Date(a.publish_datetime_utc) : null,
+                }));
+
+                await db.insert(policeReports)
+                    .values(reportsToInsert)
+                    .onConflictDoUpdate({
+                        target: policeReports.alertId,
+                        set: {
+                            type: policeReports.type,
+                            subtype: policeReports.subtype,
+                            latitude: policeReports.latitude,
+                            longitude: policeReports.longitude,
+                            street: policeReports.street,
+                            city: policeReports.city,
+                            alertReliability: policeReports.alertReliability,
+                            publishDatetimeUtc: policeReports.publishDatetimeUtc,
+                        },
+                    });
+
+                console.log(`[Waze DB] Upserted ${policeAlerts.length} police reports to database`);
+            } catch (dbError) {
+                console.error('[Waze DB] Error saving police reports:', dbError);
+                // Don't fail the request if DB write fails
+            }
+        }
+
+        // Upsert ALL alerts to traffic_alerts table
+        if (alerts.length > 0) {
+            try {
+                const alertsToInsert = alerts.map((a: any) => ({
+                    alertId: String(a.alert_id ?? a.id),
+                    type: String(a.type ?? 'ALERT').toUpperCase(),
+                    subtype: a.subtype ?? null,
+                    latitude: Number(a.latitude ?? a.lat) || null,
+                    longitude: Number(a.longitude ?? a.lon) || null,
+                    street: a.street ?? null,
+                    city: a.city ?? null,
+                    alertReliability: a.alert_reliability ?? a.reliability ?? null,
+                    alertConfidence: a.alert_confidence ?? a.confidence ?? null,
+                    description: cleanText(a.description ?? ''),
+                    publishDatetimeUtc: a.publish_datetime_utc ? new Date(a.publish_datetime_utc) : null,
+                }));
+
+                await db.insert(trafficAlerts)
+                    .values(alertsToInsert)
+                    .onConflictDoUpdate({
+                        target: trafficAlerts.alertId,
+                        set: {
+                            type: trafficAlerts.type,
+                            subtype: trafficAlerts.subtype,
+                            latitude: trafficAlerts.latitude,
+                            longitude: trafficAlerts.longitude,
+                            street: trafficAlerts.street,
+                            city: trafficAlerts.city,
+                            alertReliability: trafficAlerts.alertReliability,
+                            alertConfidence: trafficAlerts.alertConfidence,
+                            description: trafficAlerts.description,
+                            publishDatetimeUtc: trafficAlerts.publishDatetimeUtc,
+                        },
+                    });
+
+                console.log(`[Waze DB] Upserted ${alerts.length} traffic alerts to database`);
+            } catch (dbError) {
+                console.error('[Waze DB] Error saving traffic alerts:', dbError);
+                // Don't fail the request if DB write fails
+            }
+        }
 
         const geojson = {
             type: 'FeatureCollection',

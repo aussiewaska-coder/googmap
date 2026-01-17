@@ -9,8 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "ioredis": "^5.9.2",
     "maplibre-gl": "^5.16.0",
     "next": "16.1.2",
+    "postgres": "^3.4.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.5"

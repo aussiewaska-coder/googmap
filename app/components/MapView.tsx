@@ -16,10 +16,16 @@ import {
     Maximize,
     Locate,
     AlertTriangle,
-    Radio
+    Radio,
+    Gamepad2
 } from 'lucide-react';
 
-import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES } from '../lib/constants';
+import { MapController } from '../lib/gamepad/map-controller';
+import { ControllerProfile } from '../lib/gamepad/types';
+import ControllerModal from './controller/ControllerModal';
+
+import { CITIES, AUSTRALIA_CENTER, MAP_SOURCES, MAP_STYLES } from '../lib/constants';
+import { prefetchTiles } from '../lib/service-worker';
 
 interface ViewState {
     lng: number;
@@ -35,11 +41,9 @@ export default function MapView() {
     const userMarker = useRef<maplibregl.Marker | null>(null);
 
     const [viewState, setViewState] = useState<ViewState>(AUSTRALIA_CENTER);
-    const [layers, setLayers] = useState({
-        imagery: true,
-        hillshade: true,
-        terrain: true,
-    });
+    const [currentStyle, setCurrentStyle] = useState('satellite');
+    const [terrainEnabled, setTerrainEnabled] = useState(true);
+    const [terrainExaggeration, setTerrainExaggeration] = useState(1.5);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -49,29 +53,67 @@ export default function MapView() {
     const [isWazeLoading, setIsWazeLoading] = useState(false);
     const [isWazeEnabled, setIsWazeEnabled] = useState(false);
     const [timeHorizon, setTimeHorizon] = useState(1); // in hours
-    const [gamepadConnected, setGamepadConnected] = useState(false);
-    const [gamepadName, setGamepadName] = useState<string>('');
+    const [showControllerModal, setShowControllerModal] = useState(false);
+    const controllerRef = useRef<MapController | null>(null);
 
     useEffect(() => {
         if (map.current || !mapContainer.current) return;
 
-        // Initialize Map
+        // Initialize Map with all sources (raster + tactical vector)
         map.current = new maplibregl.Map({
             container: mapContainer.current,
             style: {
                 version: 8,
                 sources: {
-                    'esri-imagery': MAP_SOURCES.imagery as any,
+                    'satellite-source': MAP_SOURCES.satellite as any,
                     'terrain-source': MAP_SOURCES.terrain as any,
+                    'streets-source': MAP_SOURCES.streets as any,
+                    'topo-source': MAP_SOURCES.topo as any,
+                    'dark-source': MAP_SOURCES.dark as any,
+                    'voyager-source': MAP_SOURCES.voyager as any,
+                    'labels-source': MAP_SOURCES.labels as any,
                 },
                 glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                 layers: [
                     {
-                        id: 'esri-imagery-layer',
+                        id: 'satellite-layer',
                         type: 'raster',
-                        source: 'esri-imagery',
+                        source: 'satellite-source',
                         minzoom: 0,
                         maxzoom: 22,
+                        layout: { visibility: 'visible' },
+                    },
+                    {
+                        id: 'streets-layer',
+                        type: 'raster',
+                        source: 'streets-source',
+                        minzoom: 0,
+                        maxzoom: 22,
+                        layout: { visibility: 'none' },
+                    },
+                    {
+                        id: 'topo-layer',
+                        type: 'raster',
+                        source: 'topo-source',
+                        minzoom: 0,
+                        maxzoom: 22,
+                        layout: { visibility: 'none' },
+                    },
+                    {
+                        id: 'dark-layer',
+                        type: 'raster',
+                        source: 'dark-source',
+                        minzoom: 0,
+                        maxzoom: 22,
+                        layout: { visibility: 'none' },
+                    },
+                    {
+                        id: 'voyager-layer',
+                        type: 'raster',
+                        source: 'voyager-source',
+                        minzoom: 0,
+                        maxzoom: 22,
+                        layout: { visibility: 'none' },
                     },
                     {
                         id: 'hillshade-layer',
@@ -84,6 +126,14 @@ export default function MapView() {
                             'hillshade-accent-color': '#000000',
                         },
                         layout: { visibility: 'visible' },
+                    },
+                    {
+                        id: 'labels-layer',
+                        type: 'raster',
+                        source: 'labels-source',
+                        minzoom: 0,
+                        maxzoom: 22,
+                        layout: { visibility: 'none' },
                     },
                 ],
             },
@@ -147,117 +197,18 @@ export default function MapView() {
         };
     }, []);
 
-    // Gamepad Controls
+    // Initialize MapController for gamepad controls
     useEffect(() => {
-        let gamepadIndex: number | null = null;
-        let animationFrameId: number;
-        let zoomDiff = 0;
-        let bearingDiff = 0;
-        let pitchDiff = 0;
+        if (!map.current || !isMapReady) return;
 
-        const handleGamepadConnected = (e: GamepadEvent) => {
-            console.log('Gamepad connected:', e.gamepad.id);
-            setGamepadConnected(true);
-            setGamepadName(e.gamepad.id);
-            gamepadIndex = e.gamepad.index;
-        };
-
-        const handleGamepadDisconnected = () => {
-            console.log('Gamepad disconnected');
-            setGamepadConnected(false);
-            setGamepadName('');
-            gamepadIndex = null;
-        };
-
-        const scaleClamp = (value: number, scale: number, threshold: number) => {
-            return Math.abs(value) < threshold ? 0 : value * scale;
-        };
-
-        const pollGamepad = () => {
-            if (!map.current) {
-                animationFrameId = requestAnimationFrame(pollGamepad);
-                return;
-            }
-
-            if (gamepadIndex !== null) {
-                const gamepads = navigator.getGamepads();
-                const gamepad = gamepads[gamepadIndex];
-
-                if (gamepad) {
-                    // Left stick: Pan (axes 0 and 1)
-                    const leftX = gamepad.axes[0] || 0;
-                    const leftY = gamepad.axes[1] || 0;
-
-                    // Right stick (axes 2 and 3)
-                    const rightX = gamepad.axes[2] || 0;
-                    const rightY = gamepad.axes[3] || 0;
-
-                    // Pan speed scales with zoom
-                    const currentZoom = map.current.getZoom();
-                    const panScale = (currentZoom / 30) * 100;
-
-                    const panX = scaleClamp(leftX, panScale, 0.15);
-                    const panY = scaleClamp(leftY, panScale, 0.15);
-
-                    if (panX !== 0 || panY !== 0) {
-                        map.current.panBy([panX, panY], { animate: false });
-                    }
-
-                    // Zoom (right stick Y)
-                    zoomDiff += scaleClamp(-rightY, 0.05, 0.15);
-                    if (Math.abs(zoomDiff) > 0.1) {
-                        map.current.setZoom(currentZoom + zoomDiff);
-                        zoomDiff = 0;
-                    }
-
-                    // Bearing (right stick X)
-                    bearingDiff += scaleClamp(rightX, 2, 0.15);
-                    if (Math.abs(bearingDiff) > 1) {
-                        map.current.setBearing(map.current.getBearing() + bearingDiff);
-                        bearingDiff = 0;
-                    }
-
-                    // Pitch (L2/R2 triggers)
-                    const l2 = gamepad.buttons[6]?.pressed ? 1 : 0;
-                    const r2 = gamepad.buttons[7]?.pressed ? 1 : 0;
-
-                    if (l2 || r2) {
-                        pitchDiff += (r2 - l2) * 1.5;
-                        if (Math.abs(pitchDiff) > 1) {
-                            const currentPitch = map.current.getPitch();
-                            const newPitch = Math.max(0, Math.min(60, currentPitch + pitchDiff));
-                            map.current.setPitch(newPitch);
-                            pitchDiff = 0;
-                        }
-                    }
-                }
-            }
-
-            animationFrameId = requestAnimationFrame(pollGamepad);
-        };
-
-        window.addEventListener('gamepadconnected', handleGamepadConnected);
-        window.addEventListener('gamepaddisconnected', handleGamepadDisconnected);
-
-        // Check for already connected gamepads
-        const gamepads = navigator.getGamepads();
-        for (let i = 0; i < gamepads.length; i++) {
-            if (gamepads[i]) {
-                handleGamepadConnected({ gamepad: gamepads[i] } as GamepadEvent);
-                break;
-            }
-        }
-
-        pollGamepad();
+        const controller = new MapController(map.current);
+        controllerRef.current = controller;
 
         return () => {
-            window.removeEventListener('gamepadconnected', handleGamepadConnected);
-            window.removeEventListener('gamepaddisconnected', handleGamepadDisconnected);
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            controller.cleanup();
+            controllerRef.current = null;
         };
-    }, []);
+    }, [isMapReady]);
 
     // Waze Layers Initialization & Updates
     useEffect(() => {
@@ -392,35 +343,55 @@ export default function MapView() {
         }
     }, [isMapReady, isWazeEnabled, wazeData]);
 
-    // Terrain Updates
+    // Map Style Switching (includes terrain and hillshade based on user toggles)
     useEffect(() => {
         if (!map.current || !isMapReady) return;
-        if (layers.terrain) {
-            map.current.setTerrain({ source: 'terrain-source', exaggeration: 1.5 });
+
+        const style = MAP_STYLES.find((s) => s.id === currentStyle);
+        if (!style) return;
+
+        const allRasterLayers = [
+            'satellite-layer', 'streets-layer', 'topo-layer', 'dark-layer', 'voyager-layer'
+        ];
+
+        // Hide all base raster layers
+        allRasterLayers.forEach((layerId) => {
+            if (map.current!.getLayer(layerId)) {
+                map.current!.setLayoutProperty(layerId, 'visibility', 'none');
+            }
+        });
+
+        // Show selected base layer
+        const baseLayerId = `${style.baseLayer}-layer`;
+        if (map.current.getLayer(baseLayerId)) {
+            map.current.setLayoutProperty(baseLayerId, 'visibility', 'visible');
+        }
+
+        // Toggle labels (style default or user preference)
+        if (map.current.getLayer('labels-layer')) {
+            map.current.setLayoutProperty(
+                'labels-layer',
+                'visibility',
+                style.showLabels ? 'visible' : 'none'
+            );
+        }
+
+        // Toggle hillshade (combined with terrain control)
+        if (map.current.getLayer('hillshade-layer')) {
+            map.current.setLayoutProperty(
+                'hillshade-layer',
+                'visibility',
+                terrainEnabled ? 'visible' : 'none'
+            );
+        }
+
+        // Toggle 3D terrain (combined with hillshade control)
+        if (terrainEnabled) {
+            map.current.setTerrain({ source: 'terrain-source', exaggeration: terrainExaggeration });
         } else {
             map.current.setTerrain(null);
         }
-    }, [layers.terrain, isMapReady]);
-
-    // Hillshade Updates
-    useEffect(() => {
-        if (!map.current || !map.current.getLayer('hillshade-layer') || !isMapReady) return;
-        map.current.setLayoutProperty(
-            'hillshade-layer',
-            'visibility',
-            layers.hillshade ? 'visible' : 'none'
-        );
-    }, [layers.hillshade, isMapReady]);
-
-    // Imagery Updates
-    useEffect(() => {
-        if (!map.current || !map.current.getLayer('esri-imagery-layer') || !isMapReady) return;
-        map.current.setLayoutProperty(
-            'esri-imagery-layer',
-            'visibility',
-            layers.imagery ? 'visible' : 'none'
-        );
-    }, [layers.imagery, isMapReady]);
+    }, [currentStyle, isMapReady, terrainEnabled, terrainExaggeration]);
 
 
 
@@ -503,6 +474,71 @@ export default function MapView() {
             fetchDatabaseAlerts();
         }
     }, [isWazeEnabled, fetchDatabaseAlerts]);
+
+    // Intelligent tile prefetching - predictively cache adjacent tiles
+    useEffect(() => {
+        if (!map.current || !isMapReady) return;
+
+        let prefetchTimeout: NodeJS.Timeout;
+
+        const handleMoveEnd = () => {
+            // Debounce prefetching to avoid excessive requests during active panning
+            clearTimeout(prefetchTimeout);
+            prefetchTimeout = setTimeout(() => {
+                const zoom = Math.floor(map.current!.getZoom());
+                const center = map.current!.getCenter();
+
+                // Convert lat/lng to tile coordinates
+                const lat2tile = (lat: number, zoom: number) =>
+                    Math.floor(((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * Math.pow(2, zoom));
+                const lng2tile = (lng: number, zoom: number) =>
+                    Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
+
+                const centerTileX = lng2tile(center.lng, zoom);
+                const centerTileY = lat2tile(center.lat, zoom);
+
+                // Prefetch 1 tile in each direction (3x3 grid around center)
+                const tilesToPrefetch: string[] = [];
+                const radius = 1;
+
+                for (let dx = -radius; dx <= radius; dx++) {
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        const tileX = centerTileX + dx;
+                        const tileY = centerTileY + dy;
+
+                        // Prefetch tiles for current base layer
+                        const style = MAP_STYLES.find((s) => s.id === currentStyle);
+                        const baseLayer = style?.baseLayer || 'satellite';
+                        tilesToPrefetch.push(`/api/tiles/${baseLayer}/${zoom}/${tileX}/${tileY}`);
+
+                        // Also prefetch labels if enabled
+                        if (style?.showLabels) {
+                            tilesToPrefetch.push(`/api/tiles/labels/${zoom}/${tileX}/${tileY}`);
+                        }
+
+                        // Also prefetch terrain tiles if terrain is enabled
+                        if (terrainEnabled) {
+                            tilesToPrefetch.push(`/api/tiles/terrain/${zoom}/${tileX}/${tileY}`);
+                        }
+                    }
+                }
+
+                // Send prefetch request to service worker
+                prefetchTiles(tilesToPrefetch).catch(err => {
+                    console.error('[Prefetch] Error:', err);
+                });
+
+                console.log(`[Prefetch] Queued ${tilesToPrefetch.length} tiles for background caching`);
+            }, 1000); // Wait 1 second after user stops moving
+        };
+
+        map.current.on('moveend', handleMoveEnd);
+
+        return () => {
+            map.current?.off('moveend', handleMoveEnd);
+            clearTimeout(prefetchTimeout);
+        };
+    }, [isMapReady, currentStyle, terrainEnabled]);
 
     const fetchWazeData = async () => {
         if (!map.current) return;
@@ -622,33 +658,90 @@ export default function MapView() {
                             </button>
                         </section>
 
-                        {/* ATMOSPHERIC LAYERS: Toggles */}
+                        {/* MAP STYLES: Selector */}
                         <section>
                             <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Settings size={12} /> Atmospheric Layers
+                                <MapIcon size={12} /> Map Style
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {MAP_STYLES.map((style) => (
+                                    <button
+                                        key={style.id}
+                                        onClick={() => setCurrentStyle(style.id)}
+                                        className={`p-3 rounded-xl border transition-all text-left ${
+                                            currentStyle === style.id
+                                                ? 'bg-blue-600 border-blue-500 text-white'
+                                                : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:border-white/20'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-lg">{style.emoji}</span>
+                                            <span className="text-xs font-bold">{style.name}</span>
+                                        </div>
+                                        <div className="text-[9px] text-white/50 leading-tight">
+                                            {style.description}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* TERRAIN EFFECTS: Single Toggle + Slider */}
+                        <section>
+                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <Mountain size={12} /> Terrain Effects
                             </div>
                             <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5">
-                                {[
-                                    { id: 'imagery', label: 'Sat Imagery', icon: <MapIcon size={14} /> },
-                                    { id: 'hillshade', label: 'Shaded Relief', icon: <Sun size={14} /> },
-                                    { id: 'terrain', label: '3D Elevation', icon: <Mountain size={14} /> }
-                                ].map(layer => (
-                                    <div key={layer.id} className="flex items-center justify-between p-4 px-5">
-                                        <span className="text-white/80 text-xs font-bold flex items-center gap-2">
-                                            <span className="text-blue-500">{layer.icon}</span>
-                                            {layer.label}
-                                        </span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={layers[layer.id as keyof typeof layers]}
-                                                onChange={e => setLayers(l => ({ ...l, [layer.id]: e.target.checked }))}
-                                            />
-                                            <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                        </label>
+                                {/* Single Toggle for 3D Terrain + Hillshade */}
+                                <div className="flex items-center justify-between p-4 px-5">
+                                    <div className="flex-1">
+                                        <div className="text-white/80 text-xs font-bold flex items-center gap-2">
+                                            <span className="text-blue-500"><Mountain size={14} /></span>
+                                            3D Terrain
+                                        </div>
+                                        <div className="text-white/40 text-[9px] mt-0.5">Elevation + hillshade effects</div>
                                     </div>
-                                ))}
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={terrainEnabled}
+                                            onChange={(e) => setTerrainEnabled(e.target.checked)}
+                                        />
+                                        <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                {/* Terrain Intensity Slider */}
+                                {terrainEnabled && (
+                                    <div className="p-4 px-5 bg-white/[0.02]">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div>
+                                                <div className="text-white/80 text-xs font-bold">Terrain Intensity</div>
+                                                <div className="text-white/40 text-[9px] mt-0.5">Elevation exaggeration</div>
+                                            </div>
+                                            <div className="text-blue-400 font-mono text-xs font-bold">
+                                                {terrainExaggeration.toFixed(1)}×
+                                            </div>
+                                        </div>
+                                        <div className="relative">
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="3.0"
+                                                step="0.1"
+                                                value={terrainExaggeration}
+                                                onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-[8px] text-white/30 mt-1.5 font-mono">
+                                            <span>0.5× Subtle</span>
+                                            <span>1.5× Normal</span>
+                                            <span>3.0× Dramatic</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </section>
 
@@ -801,6 +894,27 @@ export default function MapView() {
                                 </div>
                             </div>
                         </section>
+
+                        {/* CAMERA DEBUG: View State */}
+                        <section>
+                            <div className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <Settings size={12} /> Camera Debug
+                            </div>
+                            <div className="bg-zinc-900/50 p-5 rounded-2xl border border-white/5 space-y-3 font-mono">
+                                <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-white/40 uppercase">Zoom</span>
+                                    <span className="text-blue-400 font-bold tabular-nums">{viewState.zoom.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-white/40 uppercase">Pitch</span>
+                                    <span className="text-green-400 font-bold tabular-nums">{viewState.pitch.toFixed(0)}°</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-white/40 uppercase">Bearing</span>
+                                    <span className="text-yellow-400 font-bold tabular-nums">{viewState.bearing.toFixed(0)}°</span>
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
                     {/* SIDEBAR FOOTER */}
@@ -825,6 +939,13 @@ export default function MapView() {
             {/* QUICK ACTIONS OVERLAY (Bottom Right for map tools) */}
             <div className="fixed bottom-8 right-8 z-[9000] flex flex-col gap-2">
                 <button
+                    onClick={() => setShowControllerModal(true)}
+                    className="h-12 w-12 bg-black/80 backdrop-blur-lg border border-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white hover:bg-blue-600 transition-all shadow-xl group"
+                    title="Controller Mapping"
+                >
+                    <Gamepad2 size={20} className="group-hover:scale-110 transition-transform" />
+                </button>
+                <button
                     onClick={handleLocateMe}
                     className="h-12 w-12 bg-black/80 backdrop-blur-lg border border-white/10 rounded-2xl flex items-center justify-center text-white/60 hover:text-white hover:bg-blue-600 transition-all shadow-xl group"
                     title="Find My Location"
@@ -833,40 +954,16 @@ export default function MapView() {
                 </button>
             </div>
 
-            {/* GAMEPAD STATUS */}
-            {gamepadConnected && (
-                <div className="fixed top-6 right-6 z-[9000] bg-black/90 backdrop-blur-lg border border-green-500/30 rounded-xl px-4 py-2 shadow-2xl flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-green-400 text-xs font-bold">🎮 {gamepadName.split('(')[0].trim()}</span>
-                </div>
+            {/* Controller Modal */}
+            {showControllerModal && (
+                <ControllerModal
+                    onClose={() => setShowControllerModal(false)}
+                    onSave={(profile: ControllerProfile) => {
+                        controllerRef.current?.updateProfile(profile);
+                        setShowControllerModal(false);
+                    }}
+                />
             )}
-
-            {/* CAMERA DEBUG PANEL */}
-            <div className="fixed top-20 right-6 z-[9000] bg-black/90 backdrop-blur-lg border border-white/20 rounded-xl p-4 shadow-2xl font-mono text-xs">
-                <div className="text-blue-400 font-bold mb-3 uppercase tracking-wider">Camera Debug</div>
-                <div className="space-y-2 text-white/80">
-                    <div className="flex justify-between gap-4">
-                        <span className="text-white/50">Latitude:</span>
-                        <span className="text-white font-bold">{viewState.lat.toFixed(6)}°</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                        <span className="text-white/50">Longitude:</span>
-                        <span className="text-white font-bold">{viewState.lng.toFixed(6)}°</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                        <span className="text-white/50">Zoom:</span>
-                        <span className="text-blue-400 font-bold">{viewState.zoom.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                        <span className="text-white/50">Pitch:</span>
-                        <span className="text-green-400 font-bold">{viewState.pitch.toFixed(0)}°</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                        <span className="text-white/50">Bearing:</span>
-                        <span className="text-yellow-400 font-bold">{viewState.bearing.toFixed(0)}°</span>
-                    </div>
-                </div>
-            </div>
 
             <style jsx global>{`
                 .map-fade-in {

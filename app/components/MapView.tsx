@@ -17,7 +17,9 @@ import {
     Locate,
     AlertTriangle,
     Radio,
-    Gamepad2
+    Gamepad2,
+    Radar,
+    RotateCcw
 } from 'lucide-react';
 
 import { MapController } from '../lib/gamepad/map-controller';
@@ -737,6 +739,37 @@ export default function MapView() {
         }
     }, [debugLogs, activeTab]);
 
+    // Handle back button - prevent browser back, close UI elements instead
+    useEffect(() => {
+        const handleBackButton = (e: PopStateEvent) => {
+            e.preventDefault();
+
+            // Close modals and UIs in order of priority
+            if (showControllerModal) {
+                setShowControllerModal(false);
+                window.history.pushState(null, '', window.location.href);
+            } else if (isSidebarOpen) {
+                setIsSidebarOpen(false);
+                window.history.pushState(null, '', window.location.href);
+            } else if (activeTab === 'debug') {
+                setActiveTab('main');
+                window.history.pushState(null, '', window.location.href);
+            } else {
+                // If nothing to close, allow normal back behavior
+                return;
+            }
+        };
+
+        // Push initial state
+        window.history.pushState(null, '', window.location.href);
+
+        window.addEventListener('popstate', handleBackButton);
+
+        return () => {
+            window.removeEventListener('popstate', handleBackButton);
+        };
+    }, [showControllerModal, isSidebarOpen, activeTab]);
+
     return (
         <div className="relative w-full h-screen overflow-hidden bg-black font-sans antialiased">
             {/* Map Container */}
@@ -744,62 +777,62 @@ export default function MapView() {
 
             {/* SIDEBAR OVERLAY */}
             <div className={`fixed top-0 left-0 h-full z-[10000] transition-all duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'} w-full md:w-[400px]`}>
-                <div className="h-full bg-gradient-to-b from-black/95 via-black/90 to-black/95 backdrop-blur-2xl border-r border-blue-500/20 overflow-hidden flex flex-col shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+                <div className="h-full bg-gradient-to-b from-black/70 via-black/65 to-black/70 md:from-black/85 md:via-black/80 md:to-black/85 backdrop-blur-2xl border-r border-green-500/30 overflow-hidden flex flex-col shadow-[0_0_60px_rgba(34,197,94,0.4)]">
 
                     {/* SIDEBAR HEADER */}
-                    <div className="p-4 border-b border-white/5 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-blue-900/10">
+                    <div className="p-4 border-b border-white/5 bg-gradient-to-r from-green-900/10 via-emerald-900/10 to-green-900/10">
                         <div className="flex items-center justify-between mb-4">
-                            <h1 className="text-white font-black text-xl tracking-tight flex items-center gap-2">
-                                <Activity className="text-blue-400 animate-pulse" size={24} />
-                                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                                    AUS.MAPPING
+                            <h1 className="text-white font-black text-2xl tracking-wider flex items-center gap-3">
+                                <Radar className="text-green-400 animate-pulse" size={28} strokeWidth={2.5} />
+                                <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent font-mono">
+                                    TAC
                                 </span>
                             </h1>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setShowControllerModal(true)}
-                                    className="p-2 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 rounded-lg text-purple-400 hover:text-purple-300 transition-all shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                    className="p-2.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 rounded-lg text-purple-400 hover:text-purple-300 transition-all shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:shadow-[0_0_15px_rgba(168,85,247,0.5)]"
                                     title="Controller Settings"
                                 >
-                                    <Gamepad2 size={18} />
+                                    <Gamepad2 size={20} />
                                 </button>
                                 <button
                                     onClick={() => setIsSidebarOpen(false)}
-                                    className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                    className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
                                 >
-                                    <ChevronLeft size={18} />
+                                    <ChevronLeft size={20} />
                                 </button>
                             </div>
                         </div>
 
                         {/* TAB SWITCHER */}
-                        <div className="flex gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
+                        <div className="flex gap-2 bg-white/5 p-1.5 rounded-lg border border-white/10">
                             <button
                                 onClick={() => setActiveTab('main')}
-                                className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                                className={`flex-1 py-2.5 px-3 rounded-md text-sm font-bold transition-all ${
                                     activeTab === 'main'
-                                        ? 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]'
+                                        ? 'bg-green-600 text-white shadow-[0_0_12px_rgba(34,197,94,0.6)]'
                                         : 'text-white/40 hover:text-white/60'
                                 }`}
                             >
-                                <div className="flex items-center justify-center gap-1.5">
-                                    <MapIcon size={14} />
+                                <div className="flex items-center justify-center gap-2">
+                                    <MapIcon size={16} />
                                     DASHBOARD
                                 </div>
                             </button>
                             <button
                                 onClick={() => setActiveTab('debug')}
-                                className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all ${
+                                className={`flex-1 py-2.5 px-3 rounded-md text-sm font-bold transition-all ${
                                     activeTab === 'debug'
-                                        ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]'
+                                        ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.6)]'
                                         : 'text-white/40 hover:text-white/60'
                                 }`}
                             >
-                                <div className="flex items-center justify-center gap-1.5">
-                                    <Activity size={14} />
-                                    DEBUG LOGS
+                                <div className="flex items-center justify-center gap-2">
+                                    <Activity size={16} />
+                                    DEBUG
                                     {debugLogs.length > 0 && (
-                                        <span className="bg-purple-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">
+                                        <span className="bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">
                                             {debugLogs.length}
                                         </span>
                                     )}
@@ -813,16 +846,16 @@ export default function MapView() {
                         <div className="p-4 border-b border-white/5">
                             <div className="relative group">
                                 <form onSubmit={handleSearch} className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" size={16} />
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-green-400 transition-colors" size={18} />
                                     <input
                                         type="text"
-                                        placeholder="Search location..."
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-white/20"
+                                        placeholder="Search suburbs, addresses..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-12 pr-12 text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all placeholder:text-white/30"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
                                     {isSearching && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                                     )}
                                 </form>
 
@@ -856,8 +889,8 @@ export default function MapView() {
                             <div className="p-4 space-y-4">
                                 {/* QUICK ACTIONS */}
                                 <section>
-                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                    <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
                                         QUICK ACTIONS
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
@@ -913,8 +946,8 @@ export default function MapView() {
 
                                 {/* FLIGHT DECK: Predefined Cities */}
                                 <section>
-                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                    <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
                                         FLIGHT DECK
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
@@ -939,8 +972,8 @@ export default function MapView() {
 
                                 {/* MAP STYLES: Selector */}
                                 <section>
-                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                    <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
                                         MAP STYLES
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
@@ -969,8 +1002,8 @@ export default function MapView() {
                                 {/* TERRAIN INTENSITY */}
                                 {terrainEnabled && (
                                     <section>
-                                        <div className="text-green-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
+                                        <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
                                             TERRAIN INTENSITY
                                         </div>
                                         <div className="bg-white/5 border border-green-500/20 rounded-lg p-3">
@@ -1001,8 +1034,8 @@ export default function MapView() {
                                 {/* TRAFFIC ALERTS - Compact */}
                                 {isWazeEnabled && (
                                     <section>
-                                        <div className="text-orange-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shadow-[0_0_6px_rgba(251,146,60,0.8)]" />
+                                        <div className="text-orange-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse shadow-[0_0_8px_rgba(251,146,60,0.9)]" />
                                             TRAFFIC ALERTS
                                         </div>
                                         <div className="bg-white/5 border border-orange-500/20 rounded-lg p-3 space-y-3">
@@ -1042,8 +1075,8 @@ export default function MapView() {
 
                                 {/* SYSTEM STATUS */}
                                 <section>
-                                    <div className="text-blue-400 font-bold text-[10px] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                                    <div className="text-green-400 font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.9)]" />
                                         SYSTEM STATUS
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
@@ -1133,11 +1166,51 @@ export default function MapView() {
             {!isSidebarOpen && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-6 left-6 z-[10001] bg-gradient-to-br from-blue-600/30 to-purple-600/30 backdrop-blur-xl border border-blue-500/30 p-3 rounded-xl text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:scale-105 transition-all group"
+                    className="fixed top-6 left-6 z-[10001] bg-gradient-to-br from-green-600/30 to-emerald-600/30 backdrop-blur-xl border border-green-500/30 p-3 md:p-4 rounded-xl text-white shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-[0_0_30px_rgba(34,197,94,0.6)] hover:scale-105 transition-all group"
                 >
-                    <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                    <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
                 </button>
             )}
+
+            {/* FLOATING ACTION BUTTONS - Bottom Right */}
+            <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3">
+                {/* Traffic Scan Button */}
+                <button
+                    onClick={fetchWazeData}
+                    disabled={isWazeLoading}
+                    className={`group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 ${
+                        isWazeEnabled
+                            ? 'bg-gradient-to-br from-orange-600/40 to-red-600/40 border-orange-500/50 text-white shadow-[0_0_25px_rgba(249,115,22,0.6)] hover:shadow-[0_0_35px_rgba(249,115,22,0.8)]'
+                            : 'bg-gradient-to-br from-orange-600/20 to-red-600/20 border-orange-500/30 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.3)] hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]'
+                    } hover:scale-105 active:scale-95 disabled:opacity-50`}
+                    title="Scan Traffic in Viewport"
+                >
+                    <div className="flex items-center gap-2 md:gap-3">
+                        {isWazeLoading ? (
+                            <div className="h-5 w-5 md:h-6 md:w-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <AlertTriangle size={24} className="group-hover:rotate-12 transition-transform" strokeWidth={2.5} />
+                        )}
+                        <span className="hidden md:inline">TRAFFIC SCAN</span>
+                        <span className="md:hidden">SCAN</span>
+                    </div>
+                </button>
+
+                {/* Reset to Australia Button */}
+                <button
+                    onClick={() => {
+                        flyToLocation([AUSTRALIA_CENTER.lng, AUSTRALIA_CENTER.lat], AUSTRALIA_CENTER.zoom, 'Reset Button');
+                    }}
+                    className="group relative px-4 md:px-6 py-3 md:py-4 rounded-xl font-bold text-sm md:text-base transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-green-500/30 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] hover:scale-105 active:scale-95"
+                    title="Reset to Australia View"
+                >
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <RotateCcw size={24} className="group-hover:rotate-180 transition-transform duration-500" strokeWidth={2.5} />
+                        <span className="hidden md:inline">RESET VIEW</span>
+                        <span className="md:hidden">RESET</span>
+                    </div>
+                </button>
+            </div>
 
             {/* Controller Modal */}
             {showControllerModal && (

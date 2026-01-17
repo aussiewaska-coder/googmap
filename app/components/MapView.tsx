@@ -1272,6 +1272,19 @@ export default function MapView() {
                     <Plane size={24} className="group-hover:translate-y-[-2px] transition-transform" strokeWidth={2.5} />
                 </button>
 
+                {/* Locate Me Button */}
+                <button
+                    onClick={handleLocateMe}
+                    className="group relative p-4 rounded-xl font-bold transition-all backdrop-blur-xl border-2 bg-gradient-to-br from-purple-600/20 to-purple-800/20 border-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] hover:scale-105 active:scale-95"
+                    title="Locate Me"
+                >
+                    <div className="relative">
+                        <Locate size={24} className="group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+                        {/* Green dot indicator */}
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full shadow-[0_0_6px_rgba(74,222,128,0.9)] animate-pulse" />
+                    </div>
+                </button>
+
                 {/* Traffic Alerts Button */}
                 <button
                     onClick={fetchWazeData}
